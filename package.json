@@ -1,0 +1,32 @@
+{
+    "name": "@open-browser/sdk",
+    "version": "0.1.0",
+    "description": "Open Browser — Non-custodial multi-chain wallet SDK with AI agent",
+    "type": "module",
+    "main": "pkg/ows_browser.js",
+    "exports": {
+        ".": "./pkg/ows_browser.js",
+        "./rpc": "./js/rpc.js",
+        "./price": "./js/price.js",
+        "./history": "./js/history.js",
+        "./tx-builder": "./js/tx-builder.js",
+        "./x402": "./js/x402.js",
+        "./api-keys": "./js/api-keys.js",
+        "./policy": "./js/policy.js",
+        "./audit": "./js/audit.js",
+        "./config": "./js/config.js",
+        "./key-cache": "./js/key-cache.js",
+        "./sign-and-send": "./js/sign-and-send.js",
+        "./qrcode": "./js/qrcode.js",
+        "./icons": "./js/icons.js",
+        "./address-book": "./js/address-book.js",
+        "./agent": "./js/agent.js",
+        "./ai-provider": "./js/ai-provider.js"
+    },
+    "files": ["pkg/", "js/"],
+    "scripts": {
+        "build": "wasm-pack build --target web --out-dir pkg",
+        "build:release": "wasm-pack build --target web --out-dir pkg --release",
+        "dev": "npm run build && npx serve demo"
+    }
+}

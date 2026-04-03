@@ -1,0 +1,2565 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Open Browser</title>
+<link rel="icon" href="demo/favicon.svg" type="image/svg+xml"/>
+<link rel="manifest" href="demo/manifest.json"/>
+<meta name="theme-color" content="#faf7f2"/>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://lh3.googleusercontent.com; connect-src *; worker-src 'self' blob:; wasm-src 'self' blob:"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        "background":"#faf7f2","surface":"#f5f0e8","surface-2":"#ede6d6",
+        "border-custom":"#d8ccb8","text-ink":"#3d2810","text-muted":"#9c8060",
+        "accent-seal":"#c8601a","accent-light":"#f0d4b8","primary":"#994200",
+        "success-green":"#4a7c59","error-red":"#a63d2f"
+      },
+      fontFamily: { "serif":["Playfair Display","serif"],"sans":["DM Sans","sans-serif"],"mono":["DM Mono","monospace"] },
+      borderRadius: { "DEFAULT":"2px","lg":"4px" },
+    },
+  },
+}
+</script>
+<style>
+body { background:var(--bg,#faf7f2); color:var(--fg,#3d2810); font-family:'DM Sans',sans-serif; font-weight:300; -webkit-font-smoothing:antialiased; }
+html.dark { --bg:#14120e; --fg:#e8dfd0; }
+.material-symbols-outlined { font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 24; font-size:18px; }
+.ledger-border { border:1px solid #d8ccb8; }
+.ledger-border-b { border-bottom:1px solid #d8ccb8; }
+.hide { display:none !important; }
+.loading-pulse { animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+/* Loading overlay */
+.loading-overlay { position:fixed; inset:0; background:rgba(250,247,242,0.85); z-index:50; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+.loading-overlay .spinner { width:32px; height:32px; border:2px solid #d8ccb8; border-top-color:#c8601a; border-radius:50%; animation:spin 0.8s linear infinite; }
+@keyframes spin { to{transform:rotate(360deg)} }
+.loading-overlay .loading-text { font-family:'DM Mono',monospace; font-size:11px; color:#9c8060; text-transform:uppercase; letter-spacing:0.1em; }
+/* Mobile responsive */
+@media(max-width:768px) {
+  .sidebar-left,.sidebar-right { display:none !important; }
+  .sidebar-left.mobile-open,.sidebar-right.mobile-open { display:flex !important; position:fixed; top:48px; bottom:0; z-index:40; }
+  .sidebar-left.mobile-open { left:0; }
+  .sidebar-right.mobile-open { right:0; }
+  .mobile-menu-btn { display:flex !important; }
+  .main-content { padding:16px !important; }
+}
+@media(min-width:769px) {
+  .mobile-menu-btn { display:none !important; }
+}
+/* Toast notification */
+.toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(100px); background:#3d2810; color:#faf7f2; padding:10px 24px; font-family:'DM Mono',monospace; font-size:11px; border-radius:2px; z-index:60; transition:transform 0.3s ease; pointer-events:none; }
+.toast.visible { transform:translateX(-50%) translateY(0); }
+/* Confirmation dialog */
+.confirm-overlay { position:fixed; inset:0; background:rgba(250,247,242,0.92); z-index:55; display:flex; align-items:center; justify-content:center; }
+.dark .confirm-overlay { background:rgba(20,18,14,0.92); }
+/* View transitions */
+.view-fade { animation: fadeIn 0.25s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+/* Strength bar */
+.strength-bar { height:3px; transition:width 0.3s, background 0.3s; }
+.strength-weak { width:33%; background:#a63d2f; }
+.strength-medium { width:66%; background:#c8601a; }
+.strength-strong { width:100%; background:#4a7c59; }
+/* Dark mode overrides — html.dark for specificity */
+html.dark body { background:#14120e !important; color:#e8dfd0 !important; }
+html.dark .bg-background { background:#14120e !important; }
+html.dark .bg-surface, html.dark .sidebar-left, html.dark .sidebar-right { background:#1e1b16 !important; }
+html.dark .bg-surface-2 { background:#28241d !important; }
+html.dark .text-text-ink, html.dark h1, html.dark h2, html.dark h3, html.dark h4, html.dark h5,
+html.dark .font-bold, html.dark span:not(.text-accent-seal):not(.text-success-green):not(.text-error-red):not(.text-text-muted) { color:#e8dfd0; }
+html.dark .text-text-muted { color:#8a7a62 !important; }
+html.dark .border-border-custom, html.dark .ledger-border, html.dark .ledger-border-b,
+html.dark [class*="border-border-custom"], html.dark [class*="divide-border-custom"] > * { border-color:#3d3528 !important; }
+html.dark .bg-accent-light { background:#3d2810 !important; }
+html.dark input, html.dark textarea, html.dark select { color:#e8dfd0 !important; }
+html.dark input::placeholder, html.dark textarea::placeholder { color:#5a4f3d !important; }
+html.dark .loading-overlay { background:rgba(20,18,14,0.9) !important; }
+html.dark .toast { background:#e8dfd0; color:#14120e; }
+html.dark .bg-white { background:#28241d !important; }
+html.dark header { background:#14120e !important; }
+html.dark .main-content { background:#14120e !important; }
+html.dark .bg-text-ink { background:#e8dfd0 !important; color:#14120e !important; }
+html.dark .chain-tab:not(.bg-text-ink) { color:#8a7a62; }
+html.dark .chain-tab:not(.bg-text-ink):hover { color:#e8dfd0; }
+/* Pending TX pulse */
+.pending-dot { display:inline-block; width:6px; height:6px; background:#c8601a; border-radius:50%; animation: pendingPulse 1s ease infinite; }
+@keyframes pendingPulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+/* Custom scrollbar — Archival Ledger style */
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:#d8ccb8; border-radius:0; }
+::-webkit-scrollbar-thumb:hover { background:#9c8060; }
+html.dark ::-webkit-scrollbar-thumb { background:#3d3528; }
+html.dark ::-webkit-scrollbar-thumb:hover { background:#5a4f3d; }
+/* Firefox scrollbar */
+* { scrollbar-width:thin; scrollbar-color:#d8ccb8 transparent; }
+html.dark * { scrollbar-color:#3d3528 transparent; }
+/* Smooth scrolling */
+.main-content, .sidebar-left, .sidebar-right, .overflow-y-auto { scroll-behavior:smooth; }
+</style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+<!-- TOP NAV -->
+<div id="loading-overlay" class="loading-overlay hide"><div class="spinner"></div><div id="loading-text" class="loading-text">Loading...</div></div>
+<div id="toast" class="toast"></div>
+
+<!-- Custom Input Dialog -->
+<div id="input-dialog" class="confirm-overlay hide">
+  <div class="bg-surface-2 ledger-border p-8 max-w-sm w-full mx-4 space-y-4 view-fade">
+    <div id="dialog-title" class="font-mono text-[10px] uppercase tracking-widest text-accent-seal font-bold"></div>
+    <p id="dialog-desc" class="font-sans text-[11px] text-text-muted leading-relaxed"></p>
+    <input id="dialog-input" type="password" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-sm p-0 pb-2 placeholder:text-border-custom/50" />
+    <div class="flex gap-3">
+      <button id="dialog-cancel" class="flex-1 border border-border-custom py-3 font-mono text-[10px] uppercase tracking-widest text-text-muted hover:border-accent-seal transition-all">Cancel</button>
+      <button id="dialog-confirm" class="flex-1 bg-accent-seal text-background py-3 font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- TX Confirmation Overlay -->
+<div id="tx-confirm-overlay" class="confirm-overlay hide">
+  <div class="bg-surface-2 ledger-border p-8 max-w-md w-full mx-4 space-y-6 view-fade">
+    <div class="font-mono text-[10px] uppercase tracking-widest text-accent-seal font-bold">Confirm Transaction</div>
+    <div class="space-y-3">
+      <div class="flex justify-between ledger-border-b pb-2"><span class="font-mono text-[9px] text-text-muted uppercase">From</span><span id="confirm-from" class="font-mono text-[10px] text-text-ink break-all text-right max-w-[200px]"></span></div>
+      <div class="flex justify-between ledger-border-b pb-2"><span class="font-mono text-[9px] text-text-muted uppercase">To</span><span id="confirm-to" class="font-mono text-[10px] text-text-ink break-all text-right max-w-[200px]"></span></div>
+      <div class="flex justify-between ledger-border-b pb-2"><span class="font-mono text-[9px] text-text-muted uppercase">Amount</span><span id="confirm-amount" class="font-mono text-[11px] text-text-ink font-bold"></span></div>
+      <div class="flex justify-between ledger-border-b pb-2"><span class="font-mono text-[9px] text-text-muted uppercase">Network Fee</span><span id="confirm-fee" class="font-mono text-[10px] text-text-ink"></span></div>
+      <div class="flex justify-between"><span class="font-mono text-[9px] text-text-muted uppercase">Total</span><span id="confirm-total" class="font-mono text-[11px] text-accent-seal font-bold"></span></div>
+    </div>
+    <div class="bg-accent-light/30 p-3"><span class="font-mono text-[9px] text-accent-seal">MAINNET — Real funds will be transferred. This cannot be undone.</span></div>
+    <div class="flex gap-3">
+      <button id="btn-confirm-cancel" class="flex-1 border border-border-custom py-3 font-mono text-[10px] uppercase tracking-widest text-text-muted hover:border-accent-seal transition-all">Cancel</button>
+      <button id="btn-confirm-send" class="flex-1 bg-accent-seal text-background py-3 font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Confirm &amp; Send</button>
+    </div>
+  </div>
+</div>
+
+<header class="bg-background flex justify-between items-center px-6 py-3 border-b border-border-custom flex-shrink-0">
+  <div class="flex items-center gap-4">
+    <button id="btn-mobile-menu" class="mobile-menu-btn items-center justify-center w-8 h-8" style="display:none"><span class="material-symbols-outlined">menu</span></button>
+    <span class="font-mono text-lg font-bold">Open<span class="text-accent-seal">Browser</span></span>
+    <div class="h-5 w-[1px] bg-border-custom hidden md:block"></div>
+    <span class="hidden md:inline font-serif italic text-[15px] tracking-wide" style="background:linear-gradient(90deg,#c8601a 0%,#3d2810 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">Your keys &middot; Your browser &middot; Your standard</span>
+  </div>
+  <div class="flex items-center gap-6">
+    <div class="flex items-center gap-2">
+      <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-seal opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-accent-seal"></span></span>
+      <span class="font-mono text-[10px] tracking-tighter uppercase font-bold">WASM Ready</span>
+    </div>
+    <div class="flex items-center gap-2 bg-surface-2 px-2 py-1 ledger-border">
+      <span class="font-mono text-[9px] text-accent-seal font-bold">X402</span>
+      <span class="font-mono text-[9px] text-text-muted">Enabled</span>
+    </div>
+    <button id="btn-dark-mode" class="material-symbols-outlined text-text-muted hover:text-accent-seal transition-colors" title="Toggle dark mode">dark_mode</button>
+  </div>
+</header>
+
+<div class="flex flex-1 min-h-0">
+
+<!-- LEFT SIDEBAR -->
+<aside class="sidebar-left bg-surface flex flex-col py-6 w-[200px] border-r border-border-custom flex-shrink-0 overflow-y-auto">
+  <!-- New/Import buttons at top -->
+  <div class="px-4 mb-4 space-y-1.5">
+    <button id="btn-new-wallet" class="w-full bg-accent-seal text-background py-2.5 font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-primary transition-colors" style="border-radius:2px">+ New Wallet</button>
+    <button id="btn-import-wallet" class="w-full border border-dashed border-border-custom py-2 font-mono text-[10px] uppercase tracking-widest text-text-muted hover:border-accent-seal hover:text-accent-seal transition-all">Import Mnemonic</button>
+  </div>
+
+  <div class="px-5 mb-3">
+    <h2 class="font-mono text-[10px] uppercase tracking-widest font-bold">WALLETS</h2>
+    <p class="font-mono text-[8px] text-text-muted">Registry v2.0 &middot; Mainnet</p>
+  </div>
+  <nav id="wallet-nav" class="flex-1 space-y-1">
+    <div class="px-4 py-6 text-center"><span class="font-mono text-[9px] text-text-muted">No wallets yet</span></div>
+  </nav>
+  <!-- How it Works — stays in left sidebar -->
+  <div class="px-4 mt-4 mb-2">
+    <button class="sidebar-tool-btn w-full flex items-center gap-2 px-3 py-2 text-text-muted hover:bg-surface-2 hover:text-text-ink transition-all text-left" data-panel="panel-howit">
+      <span class="material-symbols-outlined text-[14px]">info</span>
+      <div><span class="font-mono text-[10px] uppercase block">How it Works</span><span class="font-mono text-[8px] text-text-muted block">Architecture & security</span></div>
+    </button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main-content flex-1 overflow-y-auto bg-background p-8 lg:p-12">
+<div class="max-w-4xl mx-auto space-y-10">
+
+  <!-- WELCOME -->
+  <div id="view-welcome">
+    <h1 class="font-serif text-5xl tracking-tight mb-4">Open<br>Browser</h1>
+    <p class="font-sans text-sm text-text-muted leading-relaxed max-w-md mb-8">Create your first wallet to begin. Keys are generated via WebAssembly — nothing leaves this device. All chains operate on mainnet.</p>
+    <div class="grid grid-cols-3 gap-4 max-w-md mb-10">
+      <div class="text-center py-4 ledger-border"><div class="font-serif text-2xl">9</div><div class="font-mono text-[9px] text-text-muted uppercase mt-1">Chains</div></div>
+      <div class="text-center py-4 ledger-border"><div class="font-serif text-2xl">v2</div><div class="font-mono text-[9px] text-text-muted uppercase mt-1">Vault</div></div>
+      <div class="text-center py-4 ledger-border"><div class="font-serif text-2xl">X402</div><div class="font-mono text-[9px] text-text-muted uppercase mt-1">Payments</div></div>
+    </div>
+
+    <!-- Getting started guide -->
+    <div class="bg-surface-2 ledger-border p-8 max-w-md">
+      <div class="font-mono text-[10px] uppercase tracking-widest text-accent-seal font-bold mb-4">Getting Started</div>
+      <div class="space-y-4">
+        <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold mt-0.5">1</span><div><div class="font-sans text-sm font-medium">Create or import a wallet</div><div class="font-sans text-[11px] text-text-muted mt-1">Generate a new 12-word recovery phrase or import an existing one from OWS CLI.</div></div></div>
+        <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold mt-0.5">2</span><div><div class="font-sans text-sm font-medium">Fund your addresses</div><div class="font-sans text-[11px] text-text-muted mt-1">Copy your chain address and send funds from an exchange or another wallet.</div></div></div>
+        <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold mt-0.5">3</span><div><div class="font-sans text-sm font-medium">Send, sign, and transact</div><div class="font-sans text-[11px] text-text-muted mt-1">Use the dashboard to send tokens, sign messages, and manage your portfolio across 9 chains.</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CREATE -->
+  <div id="view-create" class="hide">
+    <h1 class="font-serif text-4xl tracking-tight mb-8">New Wallet</h1>
+    <section class="bg-surface-2 ledger-border p-8 space-y-6">
+      <div class="space-y-2"><label class="font-mono text-[10px] uppercase tracking-widest text-text-muted">Wallet Name</label><input id="input-create-name" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-sm p-0 pb-2 placeholder:text-border-custom/50" placeholder="e.g. primary-wallet"/></div>
+      <div class="space-y-2">
+        <label class="font-mono text-[10px] uppercase tracking-widest text-text-muted">Passphrase</label>
+        <input id="input-create-pass" type="password" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-sm p-0 pb-2 placeholder:text-border-custom/50" placeholder="Enter passphrase"/>
+        <div class="bg-border-custom/30 h-[3px] mt-1"><div id="pass-strength-bar" class="strength-bar" style="width:0"></div></div>
+        <div id="pass-strength-text" class="font-mono text-[9px] text-text-muted"></div>
+      </div>
+      <div class="flex justify-end pt-4 gap-4">
+        <button id="btn-cancel-create" class="font-mono text-[10px] uppercase text-text-muted hover:underline">Cancel</button>
+        <button id="btn-do-create" class="bg-accent-seal text-background px-8 py-3 font-mono text-[11px] tracking-widest uppercase font-bold hover:bg-primary transition-colors">Create</button>
+      </div>
+    </section>
+    <!-- Mnemonic display -->
+    <div id="create-mnemonic-box" class="hide mt-8"><div class="bg-surface-2 border border-dashed border-accent-seal p-6 relative"><div class="absolute top-0 right-0 w-4 h-4 bg-accent-seal"></div><div class="font-mono text-[9px] text-accent-seal mb-3 uppercase tracking-widest font-bold">Recovery Phrase</div><p class="font-sans text-[11px] text-text-muted mb-4 leading-relaxed">Record these words in order. You will verify them next.</p><div id="create-mnemonic-words" class="font-mono text-sm leading-loose break-all"></div></div></div>
+    <!-- Mnemonic verification -->
+    <div id="mnemonic-verify-box" class="hide mt-4 bg-surface-2 ledger-border p-6 space-y-4">
+      <div class="font-mono text-[10px] text-accent-seal uppercase tracking-widest font-bold">Verify Your Recovery Phrase</div>
+      <p class="font-sans text-[11px] text-text-muted">Select the correct word for each position to confirm you saved your phrase.</p>
+      <div id="mnemonic-verify-challenges" class="space-y-3"></div>
+      <button id="btn-verify-mnemonic" class="w-full bg-accent-seal text-background py-2.5 font-mono text-[10px] tracking-widest uppercase font-bold hover:bg-primary transition-colors disabled:opacity-40" disabled>Verify &amp; Continue</button>
+      <div id="verify-error" class="hide font-mono text-[10px] text-error-red"></div>
+    </div>
+    <div id="create-error" class="hide mt-6 bg-surface-2 ledger-border border-l-[3px] border-l-error-red p-4"><div class="font-mono text-[9px] text-error-red uppercase mb-1">Error</div><div id="create-error-text" class="font-mono text-[11px] text-error-red"></div></div>
+  </div>
+
+  <!-- IMPORT -->
+  <div id="view-import" class="hide">
+    <h1 class="font-serif text-4xl tracking-tight mb-8">Import Wallet</h1>
+    <section class="bg-surface-2 ledger-border p-8 space-y-6">
+      <div class="space-y-2"><label class="font-mono text-[10px] uppercase tracking-widest text-text-muted">Wallet Name</label><input id="input-import-name" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-sm p-0 pb-2 placeholder:text-border-custom/50" placeholder="e.g. imported-wallet"/></div>
+      <div class="space-y-2"><label class="font-mono text-[10px] uppercase tracking-widest text-text-muted">Mnemonic Phrase</label><textarea id="input-import-mnemonic" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-sm p-0 pb-2 placeholder:text-border-custom/50 resize-none h-16" placeholder="Enter 12 or 24 word mnemonic..."></textarea></div>
+      <div class="space-y-2"><label class="font-mono text-[10px] uppercase tracking-widest text-text-muted">Passphrase</label><input id="input-import-pass" type="password" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-sm p-0 pb-2 placeholder:text-border-custom/50" placeholder="Enter passphrase"/></div>
+      <div class="flex justify-end pt-4 gap-4">
+        <button id="btn-cancel-import" class="font-mono text-[10px] uppercase text-text-muted hover:underline">Cancel</button>
+        <button id="btn-do-import" class="bg-accent-seal text-background px-8 py-3 font-mono text-[11px] tracking-widest uppercase font-bold hover:bg-primary transition-colors">Import</button>
+      </div>
+    </section>
+    <div id="import-error" class="hide mt-6 bg-surface-2 ledger-border border-l-[3px] border-l-error-red p-4"><div class="font-mono text-[9px] text-error-red uppercase mb-1">Error</div><div id="import-error-text" class="font-mono text-[11px] text-error-red"></div></div>
+  </div>
+
+  <!-- WALLET VIEW -->
+  <div id="view-wallet" class="hide space-y-10">
+
+    <!-- Header -->
+    <div class="flex items-baseline justify-between flex-wrap gap-4">
+      <div>
+        <h1 id="wallet-title" class="font-serif text-4xl lg:text-5xl tracking-tight mb-2">Wallet</h1>
+        <span class="inline-block px-3 py-1 bg-accent-light text-accent-seal font-mono text-[10px] tracking-widest font-bold">ACTIVE &middot; MAINNET</span>
+      </div>
+      <div class="flex gap-2">
+        <button id="btn-rename" class="px-3 py-1 ledger-border font-mono text-[10px] uppercase text-text-muted hover:bg-surface-2 transition-all">Rename</button>
+        <button id="btn-export" class="px-3 py-1 ledger-border font-mono text-[10px] uppercase text-text-muted hover:bg-surface-2 transition-all">Export</button>
+        <button id="btn-derive-account" class="px-3 py-1 ledger-border font-mono text-[10px] uppercase text-accent-seal hover:bg-surface-2 transition-all">+ Account</button>
+        <button id="btn-delete" class="px-3 py-1 ledger-border font-mono text-[10px] uppercase text-error-red hover:bg-surface-2 transition-all">Delete</button>
+      </div>
+    </div>
+
+    <!-- Portfolio Summary -->
+    <section class="bg-surface-2 ledger-border p-8">
+      <div class="flex justify-between items-baseline mb-6">
+        <div>
+          <div class="font-mono text-[10px] text-text-muted uppercase tracking-widest">Total Portfolio Value</div>
+          <div id="portfolio-total" class="font-serif text-4xl mt-1">$0.00</div>
+        </div>
+        <button id="btn-refresh-balances" class="font-mono text-[10px] uppercase text-accent-seal hover:underline">Refresh</button>
+      </div>
+      <div id="portfolio-list" class="space-y-0">
+        <!-- Rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Chain Tabs + Address -->
+    <div>
+      <div id="chain-tabs" class="flex bg-surface-2 p-1 ledger-border flex-wrap gap-0.5 mb-0">
+        <!-- Rendered by JS -->
+      </div>
+      <section class="bg-surface-2 ledger-border border-t-0 overflow-hidden">
+        <div class="ledger-border-b px-6 py-2 flex justify-between items-center bg-surface">
+          <span id="addr-chain-label" class="font-mono text-[10px] tracking-widest text-text-muted font-bold">ADDRESS</span>
+          <div class="flex gap-4">
+            <button id="btn-copy-addr" class="font-mono text-[10px] uppercase text-accent-seal hover:underline">Copy</button>
+          </div>
+        </div>
+        <div class="p-6">
+          <p id="wallet-address" class="font-mono text-xl lg:text-2xl break-all leading-tight">0x...</p>
+          <div class="flex items-baseline gap-3 mt-3">
+            <span id="chain-balance" class="font-mono text-lg text-text-ink">0</span>
+            <span id="chain-balance-usd" class="font-mono text-sm text-text-muted">$0.00</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Send + Receive -->
+    <div class="grid grid-cols-2 gap-4">
+      <!-- Send -->
+      <section class="bg-surface-2 ledger-border p-6 space-y-4">
+        <h3 class="font-mono text-[11px] font-bold tracking-[0.2em] uppercase ledger-border-b pb-3">Send</h3>
+        <div class="space-y-1">
+          <div class="flex justify-between"><label class="font-mono text-[9px] uppercase text-text-muted">Recipient Address</label><button id="btn-show-contacts" class="font-mono text-[9px] text-accent-seal hover:underline">Contacts</button></div>
+          <input id="send-to" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1 placeholder:text-border-custom/50" placeholder="0x... or destination address"/>
+          <div id="contacts-dropdown" class="hide bg-surface ledger-border p-2 max-h-24 overflow-y-auto"></div>
+        </div>
+        <div class="space-y-1">
+          <div class="flex justify-between items-center">
+            <label class="font-mono text-[9px] uppercase text-text-muted">Amount</label>
+            <div class="flex gap-2">
+              <button id="btn-max" class="font-mono text-[9px] text-accent-seal hover:underline">MAX</button>
+              <button id="btn-usd-toggle" class="font-mono text-[9px] text-text-muted hover:text-accent-seal ledger-border px-1.5 py-0.5">USD</button>
+            </div>
+          </div>
+          <input id="send-amount" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1 placeholder:text-border-custom/50" placeholder="0.0"/>
+          <div id="send-amount-converted" class="font-mono text-[9px] text-text-muted"></div>
+        </div>
+        <!-- Gas fee estimate -->
+        <div id="gas-estimate" class="hide bg-surface p-3 space-y-1">
+          <div class="flex justify-between"><span class="font-mono text-[9px] text-text-muted uppercase">Gas Price</span><span id="gas-price-display" class="font-mono text-[10px]">—</span></div>
+          <div class="flex justify-between"><span class="font-mono text-[9px] text-text-muted uppercase">Estimated Fee</span><span id="gas-fee-display" class="font-mono text-[10px]">—</span></div>
+          <div class="flex justify-between ledger-border-b pb-2"><span class="font-mono text-[9px] text-text-muted uppercase">Total Cost</span><span id="gas-total-display" class="font-mono text-[10px] font-bold">—</span></div>
+        </div>
+        <button id="btn-estimate-fee" class="w-full border border-border-custom py-2 font-mono text-[10px] uppercase tracking-widest text-text-muted hover:border-accent-seal hover:text-accent-seal transition-all">Estimate Fee</button>
+        <button id="btn-send" class="w-full bg-accent-seal text-background py-2.5 font-mono text-[10px] tracking-widest uppercase font-bold hover:bg-primary transition-colors disabled:opacity-40 disabled:cursor-not-allowed" disabled>Sign &amp; Send</button>
+        <div id="send-result" class="hide font-mono text-[10px] text-success-green break-all leading-relaxed"></div>
+        <div id="send-error" class="hide font-mono text-[10px] text-error-red break-all"></div>
+      </section>
+
+      <!-- Receive -->
+      <section class="bg-surface-2 ledger-border p-6 space-y-4">
+        <h3 class="font-mono text-[11px] font-bold tracking-[0.2em] uppercase ledger-border-b pb-3">Receive</h3>
+        <div class="flex justify-center py-4">
+          <div id="qr-container" class="bg-white p-3 ledger-border" style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;">
+            <span class="font-mono text-[9px] text-text-muted">Select a chain</span>
+          </div>
+        </div>
+        <div id="receive-address" class="font-mono text-[10px] text-center break-all text-text-muted"></div>
+        <button id="btn-copy-receive" class="w-full border border-border-custom py-2 font-mono text-[10px] uppercase tracking-widest text-text-muted hover:border-accent-seal hover:text-accent-seal transition-all">Copy Address</button>
+      </section>
+    </div>
+
+    <!-- Sign Message / EIP-712 -->
+    <section class="bg-surface-2 ledger-border p-6 space-y-4">
+      <div class="flex justify-between items-center ledger-border-b pb-3">
+        <div class="flex gap-3">
+          <button id="sign-tab-msg" class="font-mono text-[11px] font-bold tracking-[0.2em] uppercase text-accent-seal ledger-border-b border-accent-seal pb-1">Message</button>
+          <button id="sign-tab-712" class="font-mono text-[11px] tracking-[0.2em] uppercase text-text-muted pb-1">EIP-712</button>
+        </div>
+        <div id="sign-chain-display" class="font-mono text-[10px] text-text-muted"></div>
+      </div>
+      <!-- Message mode -->
+      <div id="sign-mode-msg">
+        <textarea id="input-sign-msg" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-sm p-0 pb-2 placeholder:text-border-custom/50 resize-none h-20" placeholder="Enter message to sign..."></textarea>
+        <div class="flex justify-end mt-3">
+          <button id="btn-sign" class="bg-accent-seal text-background px-8 py-2.5 font-mono text-[10px] tracking-widest uppercase font-bold hover:bg-primary transition-colors">Sign</button>
+        </div>
+      </div>
+      <!-- EIP-712 mode -->
+      <div id="sign-mode-712" class="hide">
+        <p class="font-sans text-[11px] text-text-muted mb-2">Paste EIP-712 typed data JSON (with types, primaryType, domain, message).</p>
+        <textarea id="input-sign-712" class="w-full bg-transparent border border-border-custom focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-3 placeholder:text-border-custom/50 resize-none h-32" placeholder='{"types":{"EIP712Domain":[...],...},"primaryType":"...","domain":{...},"message":{...}}'></textarea>
+        <div class="flex justify-end mt-3">
+          <button id="btn-sign-712" class="bg-accent-seal text-background px-8 py-2.5 font-mono text-[10px] tracking-widest uppercase font-bold hover:bg-primary transition-colors">Sign Typed Data</button>
+        </div>
+      </div>
+      <div id="sign-stamp" class="hide bg-surface border border-dashed border-border-custom p-4 relative"><div class="absolute top-0 right-0 w-3 h-3 bg-accent-seal"></div><div class="font-mono text-[9px] text-text-muted mb-2 uppercase">Signature</div><div id="sign-stamp-body" class="font-mono text-[10px] break-all leading-relaxed"></div></div>
+    </section>
+
+    <!-- TX History -->
+    <section>
+      <div class="flex justify-between items-center mb-4 ledger-border-b pb-3">
+        <h3 class="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">Transaction History</h3>
+        <button id="btn-refresh-history" class="font-mono text-[10px] uppercase text-accent-seal hover:underline">Refresh</button>
+      </div>
+      <div id="tx-history" class="space-y-0">
+        <div class="py-4 text-center font-mono text-[10px] text-text-muted">Select a chain to view history</div>
+      </div>
+    </section>
+
+    <!-- Pending TX Tracker -->
+    <div id="pending-txs" class="hide space-y-2">
+      <h3 class="font-mono text-[11px] font-bold tracking-[0.2em] uppercase ledger-border-b pb-3">Pending Transactions</h3>
+      <div id="pending-txs-list"></div>
+    </div>
+
+    <!-- ============================================
+         TOOL PANELS — Opened from sidebar
+         ============================================ -->
+    <section class="mt-4">
+
+      <!-- How it Works Panel -->
+      <div id="panel-howit" class="adv-panel hide bg-surface-2 ledger-border p-6 space-y-6 view-fade">
+        <div class="ledger-border-b pb-4 mb-2">
+          <h2 class="font-serif text-2xl">How it Works</h2>
+          <p class="font-sans text-[11px] text-text-muted mt-1 leading-relaxed">Open Browser is a non-custodial, multi-chain wallet SDK running entirely in your browser via WebAssembly.</p>
+        </div>
+
+        <!-- Steps -->
+        <div class="space-y-5">
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">01</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">WASM Sandbox</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">Rust compiled to WebAssembly (528KB). All cryptographic operations — key generation, signing, encryption — execute in an isolated, high-performance sandbox. No JavaScript touches your private keys.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">02</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">Scrypt + AES-256-GCM</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">Your mnemonic is encrypted with scrypt KDF (N=65536, r=8, p=1) and AES-256-GCM with separated auth tag. Fully compatible with OWS CLI vault v2 format — same wallet opens in both.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">03</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">BIP-39 + HD Derivation</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">One 12-word mnemonic derives addresses across 9 chains automatically. BIP-32 for secp256k1 (ETH, BTC, ATOM, TRX, XRP, FIL, Spark), SLIP-10 for ed25519 (SOL, SUI). Multi-account via index parameter.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">04</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">EIP-712 Typed Signing</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">Full EIP-712 implementation — supports all atomic types (address, bool, string, bytes, uintN, intN), nested structs, arrays. Used for DeFi permits, token approvals, and X402 payment authorization.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">05</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">X402 Payments</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">HTTP 402 Payment Required protocol for agentic commerce. When a server returns 402, the SDK automatically signs an EIP-3009 USDC TransferWithAuthorization and retries. AI agents pay for API access without human intervention.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">06</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">API Keys + Policies</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">Create ows_key_ tokens for agents with HKDF-SHA256 encryption (separate from passphrase scrypt). Attach policies: allowed_chains, max_daily_spend, expires_at. All policies evaluated with AND logic before any key decryption.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">07</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">Audit Trail</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">Every wallet operation is recorded in an append-only IndexedDB log — wallet creation, signing, key management, policy denials, X402 payments. Exportable as JSONL for compliance review.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">08</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">AI Agent Runtime</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">Autonomous agents with natural language commands, scheduled/recurring tasks, conditional execution (balance thresholds, price alerts), task chaining, auto-retry with exponential backoff, and browser notifications.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">09</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">LLM Integration</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">Connect OpenAI (GPT-4.1, o3), Anthropic (Claude Sonnet/Opus 4), Google (Gemini 2.5), DeepSeek, or Groq. API key stored locally only. Agent parses natural language into wallet actions via JSON responses.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">10</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">Mainnet RPC</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">Live balance queries, USD pricing (CoinGecko, 30s cache), and transaction history across 9 chains using public mainnet endpoints. ETH transfers with RLP encoding, gas estimation, and broadcast.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">11</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">Key Security</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">5-second TTL key cache with LRU eviction (max 32 entries). Keys zeroed via beforeunload/pagehide hooks. IndexedDB only — never localStorage. Scrypt downgrade attack protection validates KDF parameters on decrypt.</p></div></div>
+          <div class="flex gap-3"><span class="font-mono text-[11px] text-accent-seal font-bold">12</span><div><h5 class="font-sans font-bold text-xs uppercase tracking-wider">Vault Backup</h5><p class="text-[11px] text-text-muted leading-relaxed mt-1">Export entire vault (wallets, API keys, policies, audit log) as encrypted JSON. Restore on any device. All data remains encrypted — backup file is safe to store in cloud storage.</p></div></div>
+        </div>
+
+        <!-- Mainnet Chains -->
+        <div>
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase mb-3 ledger-border-b pb-2">Mainnet Chains (9)</h4>
+          <div class="grid grid-cols-3 gap-2">
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-accent-seal"></span><span class="font-mono text-[10px]">Ethereum</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-accent-seal"></span><span class="font-mono text-[10px]">Bitcoin</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-accent-seal"></span><span class="font-mono text-[10px]">Solana</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-accent-seal"></span><span class="font-mono text-[10px]">Cosmos</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-accent-seal"></span><span class="font-mono text-[10px]">Tron</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-accent-seal"></span><span class="font-mono text-[10px]">Sui</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-accent-seal"></span><span class="font-mono text-[10px]">XRPL</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-accent-seal"></span><span class="font-mono text-[10px]">Filecoin</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 bg-accent-seal"></span><span class="font-mono text-[10px]">Spark</span></div>
+          </div>
+        </div>
+
+        <!-- Security -->
+        <div>
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase mb-3 ledger-border-b pb-2">Security</h4>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">Zero network custody</span></div>
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">Scrypt KDF (N=65536)</span></div>
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">EIP-712 typed data</span></div>
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">OWS vault v2 format</span></div>
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">HKDF API key encryption</span></div>
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">Policy-based access</span></div>
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">Append-only audit log</span></div>
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">Encrypted vault backup</span></div>
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">Key cache + zeroization</span></div>
+            <div class="flex items-center gap-1.5"><span class="material-symbols-outlined text-[12px] text-accent-seal">check_circle</span><span class="font-mono text-[9px]">Downgrade protection</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- API Keys Panel -->
+      <div id="panel-keys" class="adv-panel hide bg-surface-2 ledger-border p-6 space-y-4 view-fade">
+        <div class="ledger-border-b pb-4 mb-4">
+          <h2 class="font-serif text-2xl">API Keys</h2>
+          <p class="font-sans text-[11px] text-text-muted mt-1 leading-relaxed">Create token-based access for AI agents and external services. Each key is encrypted with HKDF-SHA256 and scoped to specific wallets and policies.</p>
+        </div>
+        <div class="flex justify-between items-center">
+          <h3 class="font-mono text-[11px] font-bold tracking-[0.2em] uppercase">API Keys</h3>
+          <button id="btn-create-key" class="font-mono text-[10px] text-accent-seal hover:underline">+ Create Key</button>
+        </div>
+        <!-- Create key form -->
+        <div id="key-create-form" class="hide space-y-3 bg-surface p-4 ledger-border">
+          <div class="space-y-1"><label class="font-mono text-[9px] uppercase text-text-muted">Key Name</label><input id="key-name" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1" placeholder="e.g. agent-key-1"/></div>
+          <div class="space-y-1"><label class="font-mono text-[9px] uppercase text-text-muted">Expires (optional)</label><input id="key-expires" type="datetime-local" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1"/></div>
+          <button id="btn-do-create-key" class="bg-accent-seal text-background px-6 py-2 font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Generate</button>
+        </div>
+        <!-- Token display (shown once) -->
+        <div id="key-token-display" class="hide bg-surface border border-dashed border-accent-seal p-4 relative">
+          <div class="absolute top-0 right-0 w-3 h-3 bg-accent-seal"></div>
+          <div class="font-mono text-[9px] text-accent-seal uppercase mb-2">Token — Copy Now (shown once)</div>
+          <div id="key-token-value" class="font-mono text-[10px] break-all select-all"></div>
+          <button id="btn-copy-token" class="mt-2 font-mono text-[9px] text-accent-seal hover:underline">Copy</button>
+        </div>
+        <!-- Keys list -->
+        <div id="keys-list" class="space-y-0"></div>
+      </div>
+
+      <!-- Policies Panel -->
+      <div id="panel-policies" class="adv-panel hide bg-surface-2 ledger-border p-6 space-y-4 view-fade">
+        <div class="ledger-border-b pb-4 mb-4">
+          <h2 class="font-serif text-2xl">Policies</h2>
+          <p class="font-sans text-[11px] text-text-muted mt-1 leading-relaxed">Define access rules for API keys. Restrict by chain, set expiry dates, and enforce daily spending limits. All policies use AND logic — every rule must pass.</p>
+        </div>
+        <div class="flex justify-between items-center">
+          <button id="btn-create-policy" class="font-mono text-[10px] text-accent-seal hover:underline">+ Create Policy</button>
+        </div>
+        <div id="policy-create-form" class="hide space-y-3 bg-surface p-4 ledger-border">
+          <div class="space-y-1"><label class="font-mono text-[9px] uppercase text-text-muted">Policy Name</label><input id="policy-name" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1" placeholder="e.g. eth-only"/></div>
+          <div class="space-y-1">
+            <label class="font-mono text-[9px] uppercase text-text-muted">Allowed Chains</label>
+            <div class="flex flex-wrap gap-2" id="policy-chains">
+              <label class="flex items-center gap-1"><input type="checkbox" value="eip155:1" class="policy-chain-cb" checked><span class="font-mono text-[10px]">ETH</span></label>
+              <label class="flex items-center gap-1"><input type="checkbox" value="bip122:000000000019d6689c085ae165831e93" class="policy-chain-cb"><span class="font-mono text-[10px]">BTC</span></label>
+              <label class="flex items-center gap-1"><input type="checkbox" value="solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" class="policy-chain-cb"><span class="font-mono text-[10px]">SOL</span></label>
+              <label class="flex items-center gap-1"><input type="checkbox" value="cosmos:cosmoshub-4" class="policy-chain-cb"><span class="font-mono text-[10px]">ATOM</span></label>
+              <label class="flex items-center gap-1"><input type="checkbox" value="tron:mainnet" class="policy-chain-cb"><span class="font-mono text-[10px]">TRX</span></label>
+              <label class="flex items-center gap-1"><input type="checkbox" value="sui:mainnet" class="policy-chain-cb"><span class="font-mono text-[10px]">SUI</span></label>
+              <label class="flex items-center gap-1"><input type="checkbox" value="xrpl:mainnet" class="policy-chain-cb"><span class="font-mono text-[10px]">XRP</span></label>
+            </div>
+          </div>
+          <div class="space-y-1"><label class="font-mono text-[9px] uppercase text-text-muted">Expires At (optional)</label><input id="policy-expires" type="datetime-local" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1"/></div>
+          <div class="space-y-1"><label class="font-mono text-[9px] uppercase text-text-muted">Max Daily Spend (optional)</label><input id="policy-max-spend" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1" placeholder="e.g. 1000000"/></div>
+          <button id="btn-do-create-policy" class="bg-accent-seal text-background px-6 py-2 font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Create Policy</button>
+        </div>
+        <div id="policies-list" class="space-y-0"></div>
+        <!-- Policy evaluation test -->
+        <div class="ledger-border-b pb-3 pt-4">
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase">Test Policy</h4>
+          <p class="font-sans text-[10px] text-text-muted mt-1">Check if a transaction would be allowed under current policies.</p>
+        </div>
+        <div class="space-y-2">
+          <div class="flex gap-2">
+            <select id="eval-chain" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1">
+              <option value="eip155:1">ETH</option><option value="bip122:000000000019d6689c085ae165831e93">BTC</option><option value="solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp">SOL</option><option value="cosmos:cosmoshub-4">ATOM</option><option value="tron:mainnet">TRX</option><option value="sui:mainnet">SUI</option><option value="xrpl:mainnet">XRP</option>
+            </select>
+            <input id="eval-amount" type="text" class="w-24 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1" placeholder="Amount"/>
+          </div>
+          <button id="btn-eval-policy" class="px-4 py-1.5 ledger-border font-mono text-[10px] uppercase text-accent-seal hover:bg-surface transition-all">Evaluate</button>
+          <div id="eval-result" class="hide font-mono text-[10px] mt-2 p-3 ledger-border"></div>
+        </div>
+      </div>
+
+      <!-- Audit Log Panel -->
+      <div id="panel-audit" class="adv-panel hide bg-surface-2 ledger-border p-6 space-y-4 view-fade">
+        <div class="ledger-border-b pb-4 mb-4">
+          <h2 class="font-serif text-2xl">Audit Log</h2>
+          <p class="font-sans text-[11px] text-text-muted mt-1 leading-relaxed">Every wallet operation is recorded in an append-only log. Export as JSONL for compliance review or incident investigation.</p>
+        </div>
+        <div class="flex justify-between items-center">
+          <div class="flex gap-3">
+            <button id="btn-export-audit" class="font-mono text-[10px] text-accent-seal hover:underline">Export JSONL</button>
+            <button id="btn-refresh-audit" class="font-mono text-[10px] text-text-muted hover:underline">Refresh</button>
+          </div>
+        </div>
+        <div id="audit-list" class="space-y-0 max-h-64 overflow-y-auto"></div>
+      </div>
+
+      <!-- X402 Payment Panel -->
+      <div id="panel-x402" class="adv-panel hide bg-surface-2 ledger-border p-6 space-y-4 view-fade">
+        <div class="ledger-border-b pb-4 mb-4">
+          <h2 class="font-serif text-2xl">X402 Payments</h2>
+          <p class="font-sans text-[11px] text-text-muted mt-1 leading-relaxed">HTTP 402 Payment Required protocol for agentic commerce. When a server requires payment, the SDK automatically signs an EIP-3009 USDC TransferWithAuthorization and retries the request.</p>
+        </div>
+        <div class="space-y-1"><label class="font-mono text-[9px] uppercase text-text-muted">URL</label><input id="x402-url" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1" placeholder="https://api.example.com/paid-resource"/></div>
+        <button id="btn-x402-fetch" class="bg-accent-seal text-background px-6 py-2 font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Fetch with Payment</button>
+          <div id="x402-result" class="hide bg-surface border border-dashed border-border-custom p-4 relative">
+          <div class="absolute top-0 right-0 w-3 h-3 bg-accent-seal"></div>
+          <div class="font-mono text-[9px] text-text-muted uppercase mb-2">Response</div>
+          <div id="x402-result-body" class="font-mono text-[10px] break-all leading-relaxed max-h-40 overflow-y-auto"></div>
+        </div>
+        <!-- Probe -->
+        <div class="ledger-border-b pb-3 pt-4">
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase">Probe URL</h4>
+          <p class="font-sans text-[10px] text-text-muted mt-1">Check if a URL supports X402 without making a payment.</p>
+        </div>
+        <div class="flex gap-2">
+          <input id="x402-probe-url" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1" placeholder="https://api.example.com/resource"/>
+          <button id="btn-x402-probe" class="px-4 py-1 ledger-border font-mono text-[10px] uppercase text-accent-seal hover:bg-surface transition-all">Probe</button>
+        </div>
+        <div id="x402-probe-result" class="hide font-mono text-[10px] text-text-muted mt-2"></div>
+      </div>
+
+      <!-- Settings Panel -->
+      <div id="panel-settings" class="adv-panel hide bg-surface-2 ledger-border p-6 space-y-6 view-fade">
+        <div class="ledger-border-b pb-4 mb-4">
+          <h2 class="font-serif text-2xl">Settings</h2>
+          <p class="font-sans text-[11px] text-text-muted mt-1 leading-relaxed">Manage vault backups, address book contacts, and custom RPC endpoints. Backups are encrypted and include all wallets, keys, and policies.</p>
+        </div>
+
+        <!-- Vault Backup -->
+        <div class="space-y-2">
+          <div class="font-mono text-[9px] uppercase text-text-muted tracking-widest">Vault Backup</div>
+          <div class="flex gap-3">
+            <button id="btn-backup-vault" class="flex-1 border border-border-custom py-2 font-mono text-[10px] uppercase tracking-widest text-text-muted hover:border-accent-seal hover:text-accent-seal transition-all">Download Backup</button>
+            <label class="flex-1 border border-border-custom py-2 font-mono text-[10px] uppercase tracking-widest text-text-muted hover:border-accent-seal hover:text-accent-seal transition-all text-center cursor-pointer">Restore<input id="input-restore-file" type="file" accept=".json" class="hidden"/></label>
+          </div>
+        </div>
+
+        <!-- Address Book -->
+        <div class="space-y-2">
+          <div class="flex justify-between items-center">
+            <div class="font-mono text-[9px] uppercase text-text-muted tracking-widest">Address Book</div>
+            <button id="btn-add-contact" class="font-mono text-[9px] text-accent-seal hover:underline">+ Add</button>
+          </div>
+          <div id="add-contact-form" class="hide space-y-2 bg-surface p-3 ledger-border">
+            <input id="contact-name" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1" placeholder="Contact name"/>
+            <input id="contact-address" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1" placeholder="Address"/>
+            <select id="contact-chain" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1"><option value="evm">ETH</option><option value="bitcoin">BTC</option><option value="solana">SOL</option><option value="cosmos">ATOM</option><option value="tron">TRX</option><option value="sui">SUI</option><option value="xrpl">XRP</option><option value="filecoin">FIL</option></select>
+            <button id="btn-do-add-contact" class="bg-accent-seal text-background px-4 py-1.5 font-mono text-[9px] uppercase tracking-widest font-bold">Save</button>
+          </div>
+          <div id="contacts-list" class="space-y-0"></div>
+        </div>
+
+        <!-- AI Provider -->
+        <div class="space-y-2">
+          <div class="font-mono text-[9px] uppercase text-text-muted tracking-widest">AI Agent Provider</div>
+          <p class="font-sans text-[10px] text-text-muted leading-relaxed">Your API key is stored locally. Never sent to OWS servers.</p>
+          <select id="ai-provider" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1">
+            <option value="">Select provider...</option>
+            <option value="openai">OpenAI (GPT-4.1)</option>
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="gemini">Google (Gemini 2.5)</option>
+            <option value="deepseek">DeepSeek</option>
+            <option value="groq">Groq</option>
+          </select>
+          <input id="ai-api-key" type="password" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1" placeholder="API key (sk-... or ...)"/>
+          <select id="ai-model" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1">
+            <option value="">Default model</option>
+          </select>
+          <button id="btn-save-ai" class="px-4 py-1.5 bg-accent-seal text-background font-mono text-[9px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Save AI Config</button>
+          <div id="ai-config-status" class="font-mono text-[9px] text-text-muted mt-1"></div>
+        </div>
+
+        <!-- Preferences -->
+        <div class="space-y-2">
+          <div class="font-mono text-[9px] uppercase text-text-muted tracking-widest">Preferences</div>
+          <div class="flex justify-between items-center py-1">
+            <span class="font-mono text-[10px]">Currency</span>
+            <select id="pref-currency" class="bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1 w-20">
+              <option value="usd">USD</option><option value="eur">EUR</option><option value="gbp">GBP</option><option value="try">TRY</option><option value="jpy">JPY</option>
+            </select>
+          </div>
+          <div class="flex justify-between items-center py-1">
+            <span class="font-mono text-[10px]">Auto-refresh balances</span>
+            <input id="pref-autorefresh" type="checkbox" checked class="accent-accent-seal"/>
+          </div>
+        </div>
+
+        <!-- RPC Endpoints (all chains) -->
+        <div class="space-y-2">
+          <div class="font-mono text-[9px] uppercase text-text-muted tracking-widest">Custom RPC Endpoints</div>
+          <details>
+            <summary class="font-mono text-[9px] text-text-muted cursor-pointer hover:text-accent-seal">Edit RPC endpoints (9 chains)</summary>
+            <div class="space-y-1 mt-2">
+              <div class="flex gap-2"><label class="font-mono text-[9px] text-text-muted w-10">ETH</label><input id="rpc-eth" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[9px] p-0 pb-1" placeholder="https://ethereum-rpc.publicnode.com"/></div>
+              <div class="flex gap-2"><label class="font-mono text-[9px] text-text-muted w-10">BTC</label><input id="rpc-btc" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[9px] p-0 pb-1" placeholder="https://mempool.space/api"/></div>
+              <div class="flex gap-2"><label class="font-mono text-[9px] text-text-muted w-10">SOL</label><input id="rpc-sol" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[9px] p-0 pb-1" placeholder="https://api.mainnet-beta.solana.com"/></div>
+              <div class="flex gap-2"><label class="font-mono text-[9px] text-text-muted w-10">ATOM</label><input id="rpc-atom" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[9px] p-0 pb-1" placeholder="https://cosmos-rest.publicnode.com"/></div>
+              <div class="flex gap-2"><label class="font-mono text-[9px] text-text-muted w-10">TRX</label><input id="rpc-trx" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[9px] p-0 pb-1" placeholder="https://api.trongrid.io"/></div>
+              <div class="flex gap-2"><label class="font-mono text-[9px] text-text-muted w-10">SUI</label><input id="rpc-sui" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[9px] p-0 pb-1" placeholder="https://fullnode.mainnet.sui.io:443"/></div>
+              <div class="flex gap-2"><label class="font-mono text-[9px] text-text-muted w-10">TON</label><input id="rpc-ton" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[9px] p-0 pb-1" placeholder="https://toncenter.com/api/v2"/></div>
+              <div class="flex gap-2"><label class="font-mono text-[9px] text-text-muted w-10">XRP</label><input id="rpc-xrp" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[9px] p-0 pb-1" placeholder="https://xrplcluster.com"/></div>
+              <div class="flex gap-2"><label class="font-mono text-[9px] text-text-muted w-10">FIL</label><input id="rpc-fil" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[9px] p-0 pb-1" placeholder="https://api.node.glif.io/rpc/v1"/></div>
+            </div>
+          </details>
+          <button id="btn-save-rpcs" class="font-mono text-[9px] text-accent-seal hover:underline">Save RPC Settings</button>
+        </div>
+
+        <!-- Cache & Performance -->
+        <div class="space-y-2">
+          <div class="font-mono text-[9px] uppercase text-text-muted tracking-widest">Cache & Performance</div>
+          <div id="cache-stats" class="font-mono text-[10px] text-text-muted"></div>
+          <button id="btn-clear-cache" class="font-mono text-[9px] text-accent-seal hover:underline">Clear Key Cache</button>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="space-y-2 pt-4 ledger-border-b pb-4" style="border-top:1px dashed #a63d2f">
+          <div class="font-mono text-[9px] uppercase text-error-red tracking-widest">Danger Zone</div>
+          <div class="flex gap-2 flex-wrap">
+            <button id="btn-clear-audit" class="px-3 py-1.5 border border-error-red font-mono text-[9px] uppercase text-error-red hover:bg-error-red hover:text-background transition-colors">Clear Audit Log</button>
+            <button id="btn-reset-config" class="px-3 py-1.5 border border-error-red font-mono text-[9px] uppercase text-error-red hover:bg-error-red hover:text-background transition-colors">Reset Config</button>
+            <button id="btn-wipe-all" class="px-3 py-1.5 border border-error-red font-mono text-[9px] uppercase text-error-red hover:bg-error-red hover:text-background transition-colors">Wipe All Data</button>
+          </div>
+        </div>
+
+        <!-- About -->
+        <div class="space-y-1 pt-2">
+          <div class="font-mono text-[9px] uppercase text-text-muted tracking-widest">About</div>
+          <div class="font-mono text-[10px]">Open Browser <span class="text-accent-seal">v0.1.0</span></div>
+          <div class="font-mono text-[9px] text-text-muted">WASM: 528KB &middot; 9 chains &middot; 19 JS modules &middot; MIT License</div>
+          <div class="font-mono text-[9px] text-text-muted">Built on OWS (Open Wallet Standard) vault v2 format</div>
+        </div>
+      </div>
+    </section>
+
+      <!-- AI Agent Panel -->
+      <div id="panel-agent" class="adv-panel hide bg-surface-2 ledger-border p-6 space-y-4 view-fade">
+        <div class="ledger-border-b pb-4 mb-2">
+          <h2 class="font-serif text-2xl">AI Agent</h2>
+          <p class="font-sans text-[11px] text-text-muted mt-1 leading-relaxed">Create autonomous agents that sign transactions, check balances, and pay for APIs — all governed by policies. Agents use API key tokens, never raw passwords.</p>
+        </div>
+
+        <!-- AI Config inline (if not set) -->
+        <div id="agent-ai-setup" class="bg-surface p-4 ledger-border space-y-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[14px] text-accent-seal">psychology</span>
+            <span class="font-mono text-[10px] font-bold uppercase">Connect AI Provider</span>
+          </div>
+          <p class="font-sans text-[10px] text-text-muted leading-relaxed">Add your API key so the agent can understand natural language commands and make smart decisions. Key stays in your browser.</p>
+          <select id="agent-ai-provider" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1">
+            <option value="">Select AI provider...</option>
+            <option value="openai">OpenAI (GPT-4.1)</option>
+            <option value="anthropic">Anthropic (Claude Sonnet/Opus)</option>
+            <option value="gemini">Google (Gemini 2.5)</option>
+            <option value="deepseek">DeepSeek (cheap)</option>
+            <option value="groq">Groq (fast, free tier)</option>
+          </select>
+          <select id="agent-ai-model" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1">
+            <option value="">Select model...</option>
+          </select>
+          <input id="agent-ai-key" type="password" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1" placeholder="Paste your API key here..."/>
+          <button id="btn-agent-save-ai" class="w-full bg-accent-seal text-background py-2.5 font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Connect &amp; Enable AI</button>
+        </div>
+
+        <!-- AI connected badge -->
+        <div id="agent-ai-connected" class="hide bg-surface p-3 ledger-border flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[14px] text-success-green">check_circle</span>
+            <span id="agent-ai-provider-name" class="font-mono text-[10px]">AI Connected</span>
+          </div>
+          <button id="btn-agent-change-ai" class="font-mono text-[9px] text-text-muted hover:underline">Change</button>
+        </div>
+
+        <!-- Create Agent -->
+        <div class="flex justify-between items-center mt-4">
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase">Agents</h4>
+          <button id="btn-create-agent" class="font-mono text-[10px] text-accent-seal hover:underline">+ New Agent</button>
+        </div>
+
+        <div id="agent-create-form" class="hide space-y-3 bg-surface p-4 ledger-border">
+          <div class="space-y-1"><label class="font-mono text-[9px] uppercase text-text-muted">Agent Name</label><input id="agent-name" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1" placeholder="e.g. claude-agent"/></div>
+          <div class="space-y-1"><label class="font-mono text-[9px] uppercase text-text-muted">Max TX / minute</label><input id="agent-rate" type="number" value="5" class="w-20 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1"/></div>
+          <button id="btn-do-create-agent" class="bg-accent-seal text-background px-6 py-2 font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Create Agent</button>
+        </div>
+
+        <!-- Agent list -->
+        <div id="agent-list" class="space-y-0"></div>
+
+        <!-- Natural language command -->
+        <div id="agent-task-area" class="hide space-y-3">
+          <div class="flex justify-between items-center ledger-border-b pb-2">
+            <div class="flex items-center gap-2">
+              <span id="agent-status-dot" class="w-2 h-2 rounded-full bg-text-muted"></span>
+              <span id="agent-active-name" class="font-mono text-[10px] text-accent-seal font-bold"></span>
+            </div>
+            <div class="flex gap-2">
+              <button id="btn-start-agent" class="px-3 py-1 ledger-border font-mono text-[9px] uppercase text-success-green hover:bg-surface transition-all">Start</button>
+              <button id="btn-stop-agent" class="px-3 py-1 ledger-border font-mono text-[9px] uppercase text-error-red hover:bg-surface transition-all">Stop</button>
+              <button id="btn-notify-perm" class="px-3 py-1 ledger-border font-mono text-[9px] uppercase text-text-muted hover:bg-surface transition-all">Notify</button>
+            </div>
+          </div>
+
+          <!-- AI Chat + Command input -->
+          <div id="agent-chat-log" class="max-h-48 overflow-y-auto space-y-2 mb-2"></div>
+          <div class="space-y-1">
+            <label class="font-mono text-[9px] uppercase text-text-muted">Command <span id="ai-mode-badge" class="text-accent-seal"></span></label>
+            <div class="flex gap-2">
+              <input id="agent-command" type="text" class="flex-1 bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[11px] p-0 pb-1" placeholder='e.g. "check my ETH balance every 5 minutes"'/>
+              <button id="btn-agent-run-cmd" class="bg-accent-seal text-background px-4 py-1.5 font-mono text-[10px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Send</button>
+            </div>
+            <div id="agent-command-preview" class="hide font-mono text-[9px] text-text-muted mt-1 bg-surface p-2"></div>
+          </div>
+
+          <!-- Manual task -->
+          <details class="mt-2">
+            <summary class="font-mono text-[9px] text-text-muted cursor-pointer hover:text-accent-seal">Manual task builder</summary>
+            <div class="space-y-2 mt-2 bg-surface p-3 ledger-border">
+              <select id="agent-task-type" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1">
+                <option value="check_balance">Check Balance</option>
+                <option value="sign_message">Sign Message</option>
+                <option value="sign_typed_data">Sign Typed Data</option>
+              </select>
+              <select id="agent-task-chain" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1">
+                <option value="evm">ETH</option><option value="bitcoin">BTC</option><option value="solana">SOL</option><option value="cosmos">ATOM</option><option value="tron">TRX</option><option value="sui">SUI</option>
+              </select>
+              <input id="agent-task-input" type="text" class="w-full bg-transparent border-b border-border-custom border-t-0 border-x-0 focus:ring-0 focus:border-accent-seal font-mono text-[10px] p-0 pb-1" placeholder="Address or message..."/>
+              <button id="btn-run-agent-task" class="bg-accent-seal text-background px-4 py-1.5 font-mono text-[9px] uppercase tracking-widest font-bold hover:bg-primary transition-colors">Run Task</button>
+            </div>
+          </details>
+
+          <!-- Scheduled tasks -->
+          <div id="agent-scheduled" class="hide mt-3">
+            <h4 class="font-mono text-[9px] font-bold tracking-[0.15em] uppercase text-text-muted mb-2">Scheduled</h4>
+            <div id="agent-scheduled-list" class="space-y-0"></div>
+          </div>
+        </div>
+
+        <!-- Event log -->
+        <div id="agent-history" class="space-y-0 max-h-48 overflow-y-auto"></div>
+      </div>
+
+      <!-- SDK Guide Panel -->
+      <div id="panel-sdk" class="adv-panel hide bg-surface-2 ledger-border p-6 space-y-6 view-fade">
+        <div class="ledger-border-b pb-4 mb-2">
+          <h2 class="font-serif text-2xl">SDK Guide</h2>
+          <p class="font-sans text-[11px] text-text-muted mt-1 leading-relaxed">Integrate OWS into your web app, AI agent, or DeFi protocol. All crypto runs in a WASM sandbox — keys never leave the browser.</p>
+        </div>
+
+        <!-- Quick Start -->
+        <div>
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase mb-3">Quick Start</h4>
+          <pre class="bg-surface p-4 font-mono text-[10px] leading-relaxed overflow-x-auto ledger-border"><code>import init, { create_wallet, sign_message }
+  from '@open-wallet-standard/browser';
+
+await init();
+
+const wallet = await create_wallet("my-wallet", "pass");
+// wallet.accounts → 9 chain addresses
+
+const sig = await sign_message(
+  "my-wallet", "pass", "evm", "Hello"
+);</code></pre>
+        </div>
+
+        <!-- All Functions -->
+        <div>
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase mb-3">WASM Functions</h4>
+          <div class="space-y-1">
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">create_wallet(name, pass)</code><span class="font-mono text-[9px] text-text-muted">New wallet + mnemonic</span></div>
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">import_wallet(name, mnemonic, pass)</code><span class="font-mono text-[9px] text-text-muted">Import from phrase</span></div>
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">load_wallet(name, pass)</code><span class="font-mono text-[9px] text-text-muted">Verify & load</span></div>
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">sign_message(name, pass, chain, msg)</code><span class="font-mono text-[9px] text-text-muted">Chain-specific sign</span></div>
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">sign_typed_data(name, pass, json)</code><span class="font-mono text-[9px] text-text-muted">EIP-712</span></div>
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">sign_tx(name, pass, chain, hex)</code><span class="font-mono text-[9px] text-text-muted">Sign TX bytes</span></div>
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">derive_accounts(name, pass, index)</code><span class="font-mono text-[9px] text-text-muted">Multi-account</span></div>
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">export_wallet(name, pass)</code><span class="font-mono text-[9px] text-text-muted">Get mnemonic</span></div>
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">delete_wallet(name)</code><span class="font-mono text-[9px] text-text-muted">Remove from vault</span></div>
+            <div class="flex justify-between py-1.5 ledger-border-b"><code class="font-mono text-[10px] text-accent-seal">rename_wallet(old, new, pass)</code><span class="font-mono text-[9px] text-text-muted">Change name</span></div>
+            <div class="flex justify-between py-1.5"><code class="font-mono text-[10px] text-accent-seal">list_wallets()</code><span class="font-mono text-[9px] text-text-muted">All wallet names</span></div>
+          </div>
+        </div>
+
+        <!-- JS Modules -->
+        <div>
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase mb-3">JS Modules (18)</h4>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1">
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">rpc.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">Balance</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">price.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">USD price</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">history.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">TX history</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">tx-builder.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">ETH send</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">x402.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">Payments</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">api-keys.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">Tokens</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">policy.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">Rules</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">audit.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">Logging</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">config.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">Backup</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">key-cache.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">Cache</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">sign-and-send.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">Pipeline</span></div>
+            <div class="flex items-center gap-1.5 py-1"><span class="w-1 h-1 bg-accent-seal flex-shrink-0"></span><code class="font-mono text-[9px]">qrcode.js</code><span class="font-mono text-[8px] text-text-muted ml-auto">QR gen</span></div>
+          </div>
+        </div>
+
+        <!-- Example: AI Agent -->
+        <div>
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase mb-3">Example: AI Agent with X402</h4>
+          <pre class="bg-surface p-4 font-mono text-[10px] leading-relaxed overflow-x-auto ledger-border"><code>import { fetchWithPayment, createX402Wallet }
+  from './js/x402.js';
+
+const w = createX402Wallet(addr, async (json) =>
+  await sign_typed_data(name, pass, json)
+);
+
+// Auto-pays if server returns 402
+const resp = await fetchWithPayment(
+  'https://ai-api.com/generate', {
+    method: 'POST',
+    body: JSON.stringify({ prompt: "..." })
+  }, w
+);</code></pre>
+        </div>
+
+        <!-- Example: React -->
+        <div>
+          <h4 class="font-mono text-[10px] font-bold tracking-[0.15em] uppercase mb-3">Example: React Integration</h4>
+          <pre class="bg-surface p-4 font-mono text-[10px] leading-relaxed overflow-x-auto ledger-border"><code>import init, { load_wallet, sign_message }
+  from '@open-wallet-standard/browser';
+import { getBalance } from './js/rpc.js';
+
+function useOWS() {
+  const [wallet, setWallet] = useState(null);
+  useEffect(() => { init(); }, []);
+
+  const connect = async (name, pass) => {
+    const w = await load_wallet(name, pass);
+    setWallet({ name, pass, ...w });
+  };
+
+  const sign = (chain, msg) =>
+    sign_message(wallet.name, wallet.pass, chain, msg);
+
+  return { wallet, connect, sign };
+}</code></pre>
+        </div>
+
+        <!-- Full Docs Link -->
+        <div class="bg-surface border border-dashed border-border-custom p-4 relative">
+          <div class="absolute top-0 right-0 w-3 h-3 bg-accent-seal"></div>
+          <div class="font-mono text-[9px] text-accent-seal uppercase mb-1">Full Documentation</div>
+          <div class="font-mono text-[10px] text-text-muted">See <code>SDK.md</code> in the project root for complete API reference, all 18 module docs, and advanced integration patterns.</div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Metadata Stamp -->
+    <div class="flex justify-center pt-4">
+      <div class="bg-surface-2 border border-dashed border-border-custom p-4 relative w-full max-w-sm">
+        <div class="absolute top-0 right-0 w-3 h-3 bg-accent-seal"></div>
+        <div class="font-mono text-[9px] text-text-muted uppercase">SDK &middot; Scrypt KDF &middot; 9 Chains &middot; X402 Ready</div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+</main>
+
+<!-- RIGHT SIDEBAR — Tools + footer -->
+<aside class="sidebar-right w-[220px] bg-surface border-l border-border-custom p-6 flex flex-col flex-shrink-0 overflow-y-auto">
+  <div class="mb-6">
+    <h2 class="font-mono text-[10px] uppercase tracking-widest font-bold ledger-border-b pb-2 mb-3">Tools</h2>
+    <nav class="space-y-0.5">
+      <button class="sidebar-tool-btn w-full flex items-center gap-2 px-2 py-2 text-text-muted hover:bg-surface-2 hover:text-text-ink transition-all text-left" data-panel="panel-keys">
+        <span class="material-symbols-outlined text-[14px]">key</span>
+        <div><span class="font-mono text-[9px] uppercase block">API Keys</span><span class="font-mono text-[7px] text-text-muted block">Agent tokens</span></div>
+      </button>
+      <button class="sidebar-tool-btn w-full flex items-center gap-2 px-2 py-2 text-text-muted hover:bg-surface-2 hover:text-text-ink transition-all text-left" data-panel="panel-policies">
+        <span class="material-symbols-outlined text-[14px]">shield</span>
+        <div><span class="font-mono text-[9px] uppercase block">Policies</span><span class="font-mono text-[7px] text-text-muted block">Chain & spend limits</span></div>
+      </button>
+      <button class="sidebar-tool-btn w-full flex items-center gap-2 px-2 py-2 text-text-muted hover:bg-surface-2 hover:text-text-ink transition-all text-left" data-panel="panel-audit">
+        <span class="material-symbols-outlined text-[14px]">history</span>
+        <div><span class="font-mono text-[9px] uppercase block">Audit Log</span><span class="font-mono text-[7px] text-text-muted block">Operation history</span></div>
+      </button>
+      <button class="sidebar-tool-btn w-full flex items-center gap-2 px-2 py-2 text-text-muted hover:bg-surface-2 hover:text-text-ink transition-all text-left" data-panel="panel-x402">
+        <span class="material-symbols-outlined text-[14px]">payments</span>
+        <div><span class="font-mono text-[9px] uppercase block">X402</span><span class="font-mono text-[7px] text-text-muted block">Agentic payments</span></div>
+      </button>
+      <button class="sidebar-tool-btn w-full flex items-center gap-2 px-2 py-2 text-text-muted hover:bg-surface-2 hover:text-text-ink transition-all text-left" data-panel="panel-agent">
+        <span class="material-symbols-outlined text-[14px]">smart_toy</span>
+        <div><span class="font-mono text-[9px] uppercase block">AI Agent</span><span class="font-mono text-[7px] text-text-muted block">Autonomous signing</span></div>
+      </button>
+      <button class="sidebar-tool-btn w-full flex items-center gap-2 px-2 py-2 text-text-muted hover:bg-surface-2 hover:text-text-ink transition-all text-left" data-panel="panel-settings">
+        <span class="material-symbols-outlined text-[14px]">settings</span>
+        <div><span class="font-mono text-[9px] uppercase block">Settings</span><span class="font-mono text-[7px] text-text-muted block">Backup, RPC, AI</span></div>
+      </button>
+      <button class="sidebar-tool-btn w-full flex items-center gap-2 px-2 py-2 text-text-muted hover:bg-surface-2 hover:text-text-ink transition-all text-left" data-panel="panel-sdk">
+        <span class="material-symbols-outlined text-[14px]">code</span>
+        <div><span class="font-mono text-[9px] uppercase block">SDK Guide</span><span class="font-mono text-[7px] text-text-muted block">Dev examples</span></div>
+      </button>
+    </nav>
+  </div>
+  <div class="mt-auto pt-4 border-t border-border-custom">
+    <p class="font-serif italic text-sm leading-snug">"Your keys. Your browser.<br/>Your standard."</p>
+    <div class="mt-4 flex justify-between items-end">
+      <img alt="Architectural sketch" class="opacity-40 grayscale contrast-125" style="max-width:140px" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBfpfJE2NhGCGAYYOWqw05WUCswJFjruPFwFfS2YlOrjvB_Xh1ungJJDN9TDc_eN9gFr71Gtq_LlnneIDmTYn3fo5PfKxC3nPSOZUiMIkWtf0TcB6dYSs3bXZFiWK2dIOVKw7S_kT-DBFb_GrudniqFhI3ipIDYzz6U827u11o66O6Y2YKTRIayFV0QHwWr3qZi2n8QtZun6geHF7tnHOR7I57fx0wzjIaAnZ__0zhWlMiWuobrEmaHan3etZwi3Z2-sw_lRr-L3ew"/>
+      <div class="text-right">
+        <span class="font-mono text-[8px] text-text-muted uppercase tracking-widest block"><span id="footer-year"></span></span>
+        <span class="font-mono text-[8px] text-text-muted uppercase tracking-widest block">Open Browser</span>
+      </div>
+    </div>
+  </div>
+</aside>
+
+</div>
+
+<script type="module">
+import init, { create_wallet, import_wallet, load_wallet, list_wallets, sign_message, sign_tx, sign_typed_data, export_wallet, delete_wallet, rename_wallet, derive_accounts } from './pkg/ows_browser.js';
+import { getBalance, getAllBalances } from './js/rpc.js';
+import { fetchPrices, getPrice, formatUSD } from './js/price.js';
+import { getHistory } from './js/history.js';
+import { generateQRSvg } from './js/qrcode.js';
+import { estimateEthFee, buildEthTransfer, encodeSignedEthTx } from './js/tx-builder.js';
+import { getContactsForChain, saveContact } from './js/address-book.js';
+import { chainIcon } from './js/icons.js';
+import { createApiKey, listApiKeys, deleteApiKey } from './js/api-keys.js';
+import { createPolicy, savePolicy, listPolicies, deletePolicy, evaluatePolicies, buildPolicyContext } from './js/policy.js';
+import { logOperation, getAuditLog, exportAuditLog, OPS } from './js/audit.js';
+import { fetchWithPayment, createX402Wallet, probeX402 } from './js/x402.js';
+import { keyCache } from './js/key-cache.js';
+import { OWSAgent, AgentManager } from './js/agent.js';
+import { chat as aiChat, getAIConfig, saveAIConfig, hasAIConfig, PROVIDERS as AI_PROVIDERS } from './js/ai-provider.js';
+import { exportVaultBackup, importVaultBackup, downloadBackup, getConfig, updateConfig } from './js/config.js';
+import { getContacts, removeContact } from './js/address-book.js';
+
+// ============================================================
+// STATE
+// ============================================================
+let currentWallet = null, currentChain = 'evm', walletsList = [], portfolioCache = {};
+
+// Session cache — 5 minute password memory
+let sessionPass = null, sessionTimer = null;
+function cachePass(pass) { sessionPass = pass; clearTimeout(sessionTimer); sessionTimer = setTimeout(() => { sessionPass = null; }, 5 * 60 * 1000); }
+function getPass() { return sessionPass; }
+
+const CHAINS = [
+  { key:'evm', label:'ETH', prefix:'eip155', full:'Ethereum' },
+  { key:'bitcoin', label:'BTC', prefix:'bip122', full:'Bitcoin' },
+  { key:'solana', label:'SOL', prefix:'solana', full:'Solana' },
+  { key:'cosmos', label:'ATOM', prefix:'cosmos', full:'Cosmos' },
+  { key:'tron', label:'TRX', prefix:'tron', full:'Tron' },
+  { key:'sui', label:'SUI', prefix:'sui', full:'Sui' },
+  { key:'xrpl', label:'XRP', prefix:'xrpl', full:'XRPL' },
+  { key:'filecoin', label:'FIL', prefix:'filecoin', full:'Filecoin' },
+  { key:'spark', label:'SPARK', prefix:'spark', full:'Spark' },
+];
+
+const ERROR_MAP = {
+  'Wrong password': 'Incorrect passphrase. Please try again.',
+  'corrupted wallet': 'Wallet data is corrupted or passphrase is wrong.',
+  'not found': 'Wallet not found. Create or import one first.',
+  'Invalid mnemonic': 'Invalid recovery phrase. Check your words and try again.',
+  'RNG error': 'Random number generation failed. Please refresh the page.',
+  'All fields required': 'Please fill in all fields before proceeding.',
+};
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+const views = ['view-welcome','view-create','view-import','view-wallet'];
+function showView(id) { views.forEach(v => document.getElementById(v).classList.add('hide')); const el = document.getElementById(id); el.classList.remove('hide'); el.classList.add('view-fade'); setTimeout(() => el.classList.remove('view-fade'), 300); }
+function shortAddr(a) { return !a ? '' : a.length > 16 ? a.slice(0,8)+'...'+a.slice(-6) : a; }
+
+function showLoading(text = 'Processing...') {
+  document.getElementById('loading-text').textContent = text;
+  document.getElementById('loading-overlay').classList.remove('hide');
+}
+function hideLoading() { document.getElementById('loading-overlay').classList.add('hide'); }
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('visible');
+  setTimeout(() => el.classList.remove('visible'), 2500);
+}
+
+// Custom dialog (replaces browser prompt)
+function showDialog(title, desc, placeholder = '', type = 'password') {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('input-dialog');
+    document.getElementById('dialog-title').textContent = title;
+    document.getElementById('dialog-desc').textContent = desc;
+    const input = document.getElementById('dialog-input');
+    input.type = type;
+    input.placeholder = placeholder;
+    input.value = '';
+    overlay.classList.remove('hide');
+    input.focus();
+
+    const cleanup = () => { overlay.classList.add('hide'); input.removeEventListener('keydown', onKey); };
+    const onKey = (e) => { if (e.key === 'Enter') { cleanup(); resolve(input.value || null); } if (e.key === 'Escape') { cleanup(); resolve(null); } };
+    input.addEventListener('keydown', onKey);
+    document.getElementById('dialog-cancel').onclick = () => { cleanup(); resolve(null); };
+    document.getElementById('dialog-confirm').onclick = () => { cleanup(); resolve(input.value || null); };
+  });
+}
+
+function friendlyError(e) {
+  const msg = String(e);
+  for (const [key, val] of Object.entries(ERROR_MAP)) { if (msg.includes(key)) return val; }
+  return msg.replace(/^Error:\s*/, '').replace(/^JsValue\(/, '').replace(/\)$/, '');
+}
+
+// ============================================================
+// SIDEBAR
+// ============================================================
+function renderSidebar() {
+  const nav = document.getElementById('wallet-nav');
+  if (!walletsList.length) { nav.innerHTML = '<div class="px-4 py-6 text-center"><span class="font-mono text-[9px] text-text-muted">No wallets yet</span></div>'; return; }
+  nav.innerHTML = walletsList.map(name => {
+    const isActive = currentWallet?.name === name;
+    return `<div class="wallet-nav-item ${isActive ? 'border-l-4 border-accent-seal bg-surface-2 font-bold' : 'text-text-muted hover:bg-surface-2'} px-4 py-3 flex flex-col cursor-pointer transition-all" data-name="${name}">
+      <div class="flex items-center gap-2"><span class="material-symbols-outlined text-[14px]">${isActive ? 'account_balance_wallet' : 'lock'}</span><span class="font-mono text-[10px] uppercase">${name}</span></div>
+    </div>`;
+  }).join('');
+  nav.querySelectorAll('.wallet-nav-item').forEach(el => el.addEventListener('click', () => promptLoad(el.dataset.name)));
+}
+
+async function promptLoad(name) {
+  let pass = getPass();
+  if (!pass) {
+    pass = await showDialog('Unlock Wallet', `Enter passphrase for "${name}"`, 'Passphrase...');
+    if (!pass) return;
+  }
+  showLoading('Decrypting wallet...');
+  try {
+    const w = await load_wallet(name, pass);
+    currentWallet = { name, pass, ...w };
+    cachePass(pass);
+    currentChain = 'evm';
+    renderWalletView();
+    renderSidebar();
+    toast('Wallet loaded');
+  } catch(e) { alert(friendlyError(e)); }
+  hideLoading();
+}
+
+// ============================================================
+// WALLET VIEW
+// ============================================================
+function renderWalletView() {
+  if (!currentWallet) return;
+  showView('view-wallet');
+  document.getElementById('wallet-title').textContent = currentWallet.name;
+  renderChainTabs();
+  updateChainDisplay();
+  loadPortfolio();
+}
+
+function renderChainTabs() {
+  document.getElementById('chain-tabs').innerHTML = CHAINS.map(c =>
+    `<button class="chain-tab px-3 py-1.5 font-mono text-[10px] tracking-widest ${c.key===currentChain ? 'bg-text-ink text-background font-bold' : 'text-text-muted hover:text-text-ink'}" data-chain="${c.key}">${c.label}</button>`
+  ).join('');
+  document.querySelectorAll('.chain-tab').forEach(t => t.addEventListener('click', () => {
+    currentChain = t.dataset.chain;
+    renderChainTabs();
+    updateChainDisplay();
+    loadHistory();
+    // Reset send form
+    document.getElementById('gas-estimate').classList.add('hide');
+    document.getElementById('btn-send').disabled = true;
+    document.getElementById('send-result').classList.add('hide');
+    document.getElementById('send-error').classList.add('hide');
+  }));
+}
+
+function updateChainDisplay() {
+  const c = CHAINS.find(x => x.key === currentChain);
+  const acc = currentWallet?.accounts?.find(a => a.chain_id?.startsWith(c.prefix));
+  const addr = acc?.address || 'No address for this chain';
+  document.getElementById('wallet-address').textContent = addr;
+  document.getElementById('addr-chain-label').textContent = `ADDRESS / ${acc?.chain_id || c.prefix}`;
+  document.getElementById('sign-chain-display').textContent = c.full;
+  document.getElementById('receive-address').textContent = addr;
+
+  // Balance
+  const bal = portfolioCache[c.prefix];
+  document.getElementById('chain-balance').textContent = bal ? `${bal.formatted} ${bal.symbol}` : 'Loading...';
+  const price = getPrice(c.key);
+  const usdVal = bal ? parseFloat(bal.formatted) * price.usd : 0;
+  document.getElementById('chain-balance-usd').textContent = formatUSD(usdVal);
+
+  // QR Code
+  const qr = document.getElementById('qr-container');
+  if (addr && addr !== 'No address for this chain') {
+    try { qr.innerHTML = generateQRSvg(addr, 150, '#3d2810', '#ffffff'); }
+    catch { qr.innerHTML = `<div class="font-mono text-[9px] text-text-muted break-all p-2" style="max-width:140px">${addr}</div>`; }
+  } else {
+    qr.innerHTML = '<span class="font-mono text-[9px] text-text-muted">No address</span>';
+  }
+
+  // Enable/disable send based on chain (only EVM for now)
+  const sendSupported = currentChain === 'evm';
+  document.getElementById('btn-estimate-fee').style.display = sendSupported ? '' : 'none';
+  document.getElementById('btn-send').style.display = sendSupported ? '' : 'none';
+  if (!sendSupported) {
+    document.getElementById('gas-estimate').classList.add('hide');
+  }
+}
+
+// ============================================================
+// PORTFOLIO
+// ============================================================
+async function loadPortfolio() {
+  if (!currentWallet?.accounts) return;
+  document.getElementById('portfolio-total').classList.add('loading-pulse');
+
+  await fetchPrices();
+  const balances = await getAllBalances(currentWallet.accounts);
+  portfolioCache = balances;
+
+  let totalUsd = 0;
+  const rows = CHAINS.filter(c => balances[c.prefix]).map(c => {
+    const b = balances[c.prefix];
+    const price = getPrice(c.key);
+    const usd = parseFloat(b.formatted || 0) * price.usd;
+    totalUsd += usd;
+    return `<div class="flex justify-between items-center py-2.5 ledger-border-b">
+      <div class="flex items-center gap-3">
+        <span class="w-5 h-5 flex-shrink-0">${chainIcon(c.key)}</span>
+        <span class="font-mono text-[10px] font-bold text-accent-seal w-10">${c.label}</span>
+        <span class="font-mono text-[11px]">${b.formatted || '0'} ${b.symbol || c.label}</span>
+      </div>
+      <div class="text-right">
+        <span class="font-mono text-[11px]">${formatUSD(usd)}</span>
+        ${b.error ? '<span class="font-mono text-[8px] text-error-red ml-2">!</span>' : ''}
+      </div>
+    </div>`;
+  });
+
+  document.getElementById('portfolio-list').innerHTML = rows.join('');
+  document.getElementById('portfolio-total').textContent = formatUSD(totalUsd);
+  document.getElementById('portfolio-total').classList.remove('loading-pulse');
+  updateChainDisplay();
+}
+
+// ============================================================
+// TX HISTORY
+// ============================================================
+async function loadHistory() {
+  const c = CHAINS.find(x => x.key === currentChain);
+  const acc = currentWallet?.accounts?.find(a => a.chain_id?.startsWith(c.prefix));
+  const histEl = document.getElementById('tx-history');
+  if (!acc) { histEl.innerHTML = '<div class="py-4 text-center font-mono text-[10px] text-text-muted">No address for this chain</div>'; return; }
+
+  histEl.innerHTML = '<div class="py-4 text-center font-mono text-[10px] text-text-muted loading-pulse">Fetching transactions...</div>';
+  const hist = await getHistory(c.key, acc.address);
+
+  if (hist.note) { histEl.innerHTML = `<div class="py-4 text-center font-mono text-[10px] text-text-muted">${hist.note}</div>`; return; }
+  if (!hist.txs?.length) { histEl.innerHTML = '<div class="py-4 text-center font-mono text-[10px] text-text-muted">No transactions found</div>'; return; }
+
+  histEl.innerHTML = hist.txs.map(tx => `
+    <div class="flex justify-between items-center py-2.5 ledger-border-b">
+      <div><a href="${tx.explorer || '#'}" target="_blank" class="font-mono text-[10px] text-accent-seal hover:underline">${shortAddr(tx.hash)}</a>
+      <span class="font-mono text-[8px] text-text-muted ml-2">${tx.time ? new Date(tx.time).toLocaleDateString() : ''}</span></div>
+      <span class="font-mono text-[9px] ${tx.confirmed !== false ? 'text-success-green' : 'text-text-muted'}">${tx.confirmed !== false ? 'confirmed' : 'pending'}</span>
+    </div>`).join('');
+}
+
+// ============================================================
+// EVENT HANDLERS
+// ============================================================
+
+// Navigation
+document.getElementById('btn-new-wallet').addEventListener('click', () => { showView('view-create'); document.getElementById('create-mnemonic-box').classList.add('hide'); document.getElementById('create-error').classList.add('hide'); });
+document.getElementById('btn-import-wallet').addEventListener('click', () => { showView('view-import'); document.getElementById('import-error').classList.add('hide'); });
+document.getElementById('btn-cancel-create').addEventListener('click', () => showView(currentWallet ? 'view-wallet' : 'view-welcome'));
+document.getElementById('btn-cancel-import').addEventListener('click', () => showView(currentWallet ? 'view-wallet' : 'view-welcome'));
+
+// Mobile menu
+document.getElementById('btn-mobile-menu').addEventListener('click', () => {
+  const left = document.querySelector('.sidebar-left');
+  left.classList.toggle('mobile-open');
+  document.querySelector('.sidebar-right').classList.remove('mobile-open');
+});
+
+// Create wallet
+document.getElementById('btn-do-create').addEventListener('click', async () => {
+  const name = document.getElementById('input-create-name').value.trim();
+  const pass = document.getElementById('input-create-pass').value;
+  document.getElementById('create-error').classList.add('hide');
+  if (!name || !pass) { document.getElementById('create-error').classList.remove('hide'); document.getElementById('create-error-text').textContent = friendlyError('All fields required'); return; }
+  if (pass.length < 4) { document.getElementById('create-error').classList.remove('hide'); document.getElementById('create-error-text').textContent = 'Passphrase must be at least 4 characters.'; return; }
+
+  showLoading('Generating wallet & encrypting with scrypt...');
+  try {
+    const w = await create_wallet(name, pass);
+    currentWallet = { name, pass, ...w };
+    cachePass(pass);
+    currentChain = 'evm';
+    if (w.mnemonic) {
+      document.getElementById('create-mnemonic-box').classList.remove('hide');
+      document.getElementById('create-mnemonic-words').textContent = w.mnemonic;
+      setupMnemonicVerification(w.mnemonic);
+    }
+    await refreshList(); renderSidebar();
+    toast('Wallet created — verify your recovery phrase');
+  } catch(e) { document.getElementById('create-error').classList.remove('hide'); document.getElementById('create-error-text').textContent = friendlyError(e); }
+  hideLoading();
+});
+
+// Import wallet
+document.getElementById('btn-do-import').addEventListener('click', async () => {
+  const name = document.getElementById('input-import-name').value.trim();
+  const mn = document.getElementById('input-import-mnemonic').value.trim();
+  const pass = document.getElementById('input-import-pass').value;
+  document.getElementById('import-error').classList.add('hide');
+  if (!name || !mn || !pass) { document.getElementById('import-error').classList.remove('hide'); document.getElementById('import-error-text').textContent = friendlyError('All fields required'); return; }
+
+  const wordCount = mn.split(/\s+/).length;
+  if (wordCount !== 12 && wordCount !== 24) { document.getElementById('import-error').classList.remove('hide'); document.getElementById('import-error-text').textContent = 'Mnemonic must be 12 or 24 words.'; return; }
+
+  showLoading('Importing wallet & deriving 9 chain addresses...');
+  try {
+    const w = await import_wallet(name, mn, pass);
+    currentWallet = { name, pass, ...w };
+    cachePass(pass);
+    currentChain = 'evm';
+    await refreshList(); renderSidebar(); renderWalletView();
+    toast('Wallet imported successfully');
+  } catch(e) { document.getElementById('import-error').classList.remove('hide'); document.getElementById('import-error-text').textContent = friendlyError(e); }
+  hideLoading();
+});
+
+// Copy address
+document.getElementById('btn-copy-addr').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('wallet-address').textContent);
+  toast('Address copied to clipboard');
+});
+document.getElementById('btn-copy-receive').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('receive-address').textContent);
+  toast('Address copied to clipboard');
+});
+
+// Export
+document.getElementById('btn-export').addEventListener('click', async () => {
+  if (!currentWallet) return;
+  const pass = getPass() || currentWallet.pass;
+  showLoading('Decrypting mnemonic...');
+  try {
+    const mn = await export_wallet(currentWallet.name, pass);
+    hideLoading();
+    alert('Recovery Phrase:\n\n' + (typeof mn === 'string' ? mn : mn?.toString()));
+  } catch(e) { hideLoading(); alert(friendlyError(e)); }
+});
+
+// Delete
+document.getElementById('btn-delete').addEventListener('click', async () => {
+  if (!currentWallet || !confirm(`Are you sure you want to delete "${currentWallet.name}"?\n\nThis cannot be undone. Make sure you have your recovery phrase saved.`)) return;
+  showLoading('Deleting wallet...');
+  await delete_wallet(currentWallet.name);
+  currentWallet = null; sessionPass = null;
+  await refreshList(); renderSidebar(); showView('view-welcome');
+  hideLoading(); toast('Wallet deleted');
+});
+
+// Refresh
+document.getElementById('btn-refresh-balances').addEventListener('click', () => { toast('Refreshing balances...'); loadPortfolio(); });
+document.getElementById('btn-refresh-history').addEventListener('click', loadHistory);
+
+// Sign message
+document.getElementById('btn-sign').addEventListener('click', async () => {
+  const msg = document.getElementById('input-sign-msg').value.trim();
+  if (!msg || !currentWallet) return;
+  document.getElementById('sign-stamp').classList.add('hide');
+  const pass = getPass() || currentWallet.pass;
+  showLoading('Signing message...');
+  try {
+    const r = await sign_message(currentWallet.name, pass, currentChain, msg);
+    document.getElementById('sign-stamp').classList.remove('hide');
+    document.getElementById('sign-stamp-body').textContent = typeof r === 'string' ? r : JSON.stringify(r, null, 2);
+    toast('Message signed');
+  } catch(e) { alert(friendlyError(e)); }
+  hideLoading();
+});
+
+// ============================================================
+// ETH SEND — Gas estimate + Sign + Broadcast
+// ============================================================
+let pendingTxParams = null;
+
+document.getElementById('btn-estimate-fee').addEventListener('click', async () => {
+  const to = document.getElementById('send-to').value.trim();
+  const amount = document.getElementById('send-amount').value.trim();
+  if (!to || !amount) { document.getElementById('send-error').classList.remove('hide'); document.getElementById('send-error').textContent = 'Enter recipient and amount first.'; return; }
+  if (currentChain !== 'evm') return;
+
+  document.getElementById('send-error').classList.add('hide');
+  document.getElementById('send-result').classList.add('hide');
+  showLoading('Estimating gas fee...');
+
+  try {
+    const fee = await estimateEthFee();
+    const totalEth = (parseFloat(amount) + parseFloat(fee.estimatedFeeEth)).toFixed(6);
+    document.getElementById('gas-price-display').textContent = `${fee.gasPriceGwei} Gwei`;
+    document.getElementById('gas-fee-display').textContent = `${fee.estimatedFeeEth} ETH`;
+    document.getElementById('gas-total-display').textContent = `${totalEth} ETH`;
+    document.getElementById('gas-estimate').classList.remove('hide');
+    document.getElementById('btn-send').disabled = false;
+    pendingTxParams = { to, amount, fee };
+  } catch(e) {
+    document.getElementById('send-error').classList.remove('hide');
+    document.getElementById('send-error').textContent = friendlyError(e);
+  }
+  hideLoading();
+});
+
+document.getElementById('btn-send').addEventListener('click', async () => {
+  if (!currentWallet || !pendingTxParams || currentChain !== 'evm') return;
+  const { to, amount, fee } = pendingTxParams;
+  const acc = currentWallet.accounts?.find(a => a.chain_id?.startsWith('eip155'));
+
+  // Show TX confirmation overlay
+  const totalEth = (parseFloat(amount) + parseFloat(fee.estimatedFeeEth)).toFixed(6);
+  showTxConfirm(
+    acc?.address || '', to,
+    `${amount} ETH`, `${fee.estimatedFeeEth} ETH`, `${totalEth} ETH`,
+    () => executeSend(to, amount)
+  );
+});
+
+async function executeSend(to, amount) {
+  const pass = getPass() || currentWallet.pass;
+  showLoading('Building & signing transaction...');
+  document.getElementById('send-result').classList.add('hide');
+  document.getElementById('send-error').classList.add('hide');
+
+  try {
+    const acc = currentWallet.accounts?.find(a => a.chain_id?.startsWith('eip155'));
+    if (!acc) throw new Error('No EVM address found');
+
+    // Build unsigned TX
+    const txParams = await buildEthTransfer(acc.address, to, amount);
+
+    // Sign with WASM
+    const signResult = await sign_tx(currentWallet.name, pass, 'evm', txParams.unsignedTxHex);
+    const sig = typeof signResult === 'string' ? signResult : signResult.signature;
+
+    // Encode signed TX
+    const signedTxHex = encodeSignedEthTx({ ...txParams, toAddress: to }, sig);
+
+    // Broadcast
+    showLoading('Broadcasting to Ethereum mainnet...');
+    const resp = await fetch('https://ethereum-rpc.publicnode.com', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc:'2.0', id:1, method:'eth_sendRawTransaction', params:[signedTxHex] })
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+    if (!data.result) throw new Error('No transaction hash returned. TX may have been rejected.');
+
+    const txHash = data.result;
+    document.getElementById('send-result').classList.remove('hide');
+    document.getElementById('send-result').innerHTML = `Transaction sent!<br><a href="https://etherscan.io/tx/${txHash}" target="_blank" class="text-accent-seal hover:underline">${shortAddr(txHash)}</a>`;
+    toast('Transaction broadcast successfully');
+
+    // Save contact if new
+    const toAddr = document.getElementById('send-to').value.trim();
+    const existingContacts = getContactsForChain('evm');
+    if (!existingContacts.find(c => c.address === toAddr)) {
+      saveContact(shortAddr(toAddr), toAddr, 'evm');
+    }
+
+    // Add to pending tracker
+    addPendingTx(txHash, 'evm', `${amount} ETH`);
+
+    pendingTxParams = null;
+    document.getElementById('btn-send').disabled = true;
+  } catch(e) {
+    document.getElementById('send-error').classList.remove('hide');
+    document.getElementById('send-error').textContent = friendlyError(e);
+  }
+  hideLoading();
+}
+
+// ============================================================
+// DARK MODE
+// ============================================================
+document.getElementById('btn-dark-mode').addEventListener('click', () => {
+  document.documentElement.classList.toggle('dark');
+  const isDark = document.documentElement.classList.contains('dark');
+  document.getElementById('btn-dark-mode').textContent = isDark ? 'light_mode' : 'dark_mode';
+  document.querySelector('meta[name="theme-color"]').content = isDark ? '#14120e' : '#faf7f2';
+  localStorage.setItem('ows-dark-mode', isDark ? '1' : '0');
+});
+if (localStorage.getItem('ows-dark-mode') === '1') {
+  document.documentElement.classList.add('dark');
+  document.getElementById('btn-dark-mode').textContent = 'light_mode';
+}
+
+// ============================================================
+// PASSPHRASE STRENGTH
+// ============================================================
+document.getElementById('input-create-pass').addEventListener('input', (e) => {
+  const pass = e.target.value;
+  const bar = document.getElementById('pass-strength-bar');
+  const text = document.getElementById('pass-strength-text');
+  if (pass.length === 0) { bar.className = 'strength-bar'; bar.style.width = '0'; text.textContent = ''; return; }
+  if (pass.length < 6) { bar.className = 'strength-bar strength-weak'; text.textContent = 'Weak — use at least 8 characters'; }
+  else if (pass.length < 10 || !/[0-9]/.test(pass) || !/[A-Z]/.test(pass)) { bar.className = 'strength-bar strength-medium'; text.textContent = 'Medium — add numbers and uppercase'; }
+  else { bar.className = 'strength-bar strength-strong'; text.textContent = 'Strong'; }
+});
+
+// ============================================================
+// MNEMONIC VERIFICATION
+// ============================================================
+let mnemonicWords = [];
+let verifyIndices = [];
+
+function setupMnemonicVerification(phrase) {
+  mnemonicWords = phrase.split(' ');
+  // Pick 3 random positions to verify
+  const indices = [];
+  while (indices.length < 3) {
+    const idx = Math.floor(Math.random() * mnemonicWords.length);
+    if (!indices.includes(idx)) indices.push(idx);
+  }
+  verifyIndices = indices.sort((a, b) => a - b);
+
+  const container = document.getElementById('mnemonic-verify-challenges');
+  container.innerHTML = verifyIndices.map((idx, i) => {
+    // Generate 3 wrong options + 1 correct, shuffle
+    const correct = mnemonicWords[idx];
+    const options = [correct];
+    const allWords = ['abandon','ability','able','about','above','absent','absorb','abstract','absurd','abuse','access','accident','account','accuse','achieve','acid','acoustic','acquire','across','act','action','actor','actress','actual','adapt','add','addict','address','adjust','admit'];
+    while (options.length < 4) {
+      const w = allWords[Math.floor(Math.random() * allWords.length)];
+      if (!options.includes(w)) options.push(w);
+    }
+    options.sort(() => Math.random() - 0.5);
+    return `<div class="space-y-1">
+      <span class="font-mono text-[9px] text-text-muted">Word #${idx + 1}</span>
+      <div class="flex gap-2">${options.map(w =>
+        `<button class="verify-word-btn flex-1 py-1.5 ledger-border font-mono text-[10px] hover:border-accent-seal hover:text-accent-seal transition-all" data-idx="${idx}" data-word="${w}">${w}</button>`
+      ).join('')}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('mnemonic-verify-box').classList.remove('hide');
+  document.getElementById('btn-verify-mnemonic').disabled = true;
+
+  // Word selection handlers
+  container.querySelectorAll('.verify-word-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = btn.dataset.idx;
+      container.querySelectorAll(`[data-idx="${idx}"]`).forEach(b => {
+        b.classList.remove('bg-accent-seal', 'text-background', 'border-accent-seal');
+      });
+      btn.classList.add('bg-accent-seal', 'text-background', 'border-accent-seal');
+      btn.dataset.selected = '1';
+      // Check if all 3 selected
+      const allSelected = verifyIndices.every(i => container.querySelector(`[data-idx="${i}"][data-selected="1"]`));
+      document.getElementById('btn-verify-mnemonic').disabled = !allSelected;
+    });
+  });
+}
+
+document.getElementById('btn-verify-mnemonic').addEventListener('click', () => {
+  const container = document.getElementById('mnemonic-verify-challenges');
+  let allCorrect = true;
+  verifyIndices.forEach(idx => {
+    const selected = container.querySelector(`[data-idx="${idx}"].bg-accent-seal`);
+    if (!selected || selected.dataset.word !== mnemonicWords[idx]) allCorrect = false;
+  });
+  if (allCorrect) {
+    document.getElementById('mnemonic-verify-box').classList.add('hide');
+    toast('Recovery phrase verified successfully');
+    renderWalletView();
+  } else {
+    document.getElementById('verify-error').classList.remove('hide');
+    document.getElementById('verify-error').textContent = 'Incorrect words selected. Please check your recovery phrase and try again.';
+  }
+});
+
+// ============================================================
+// MAX BUTTON + USD TOGGLE
+// ============================================================
+let sendInUsd = false;
+
+document.getElementById('btn-max').addEventListener('click', () => {
+  const c = CHAINS.find(x => x.key === currentChain);
+  const bal = portfolioCache[c?.prefix];
+  if (bal?.formatted) {
+    if (sendInUsd) {
+      const price = getPrice(currentChain);
+      document.getElementById('send-amount').value = (parseFloat(bal.formatted) * price.usd).toFixed(2);
+    } else {
+      document.getElementById('send-amount').value = bal.formatted;
+    }
+    updateAmountConversion();
+  }
+});
+
+document.getElementById('btn-usd-toggle').addEventListener('click', () => {
+  sendInUsd = !sendInUsd;
+  const btn = document.getElementById('btn-usd-toggle');
+  const c = CHAINS.find(x => x.key === currentChain);
+  btn.textContent = sendInUsd ? (c?.label || 'NATIVE') : 'USD';
+  btn.classList.toggle('text-accent-seal', sendInUsd);
+  btn.classList.toggle('border-accent-seal', sendInUsd);
+  document.getElementById('send-amount').placeholder = sendInUsd ? '$0.00' : '0.0';
+  updateAmountConversion();
+});
+
+document.getElementById('send-amount').addEventListener('input', updateAmountConversion);
+
+function updateAmountConversion() {
+  const amount = parseFloat(document.getElementById('send-amount').value) || 0;
+  const price = getPrice(currentChain);
+  const c = CHAINS.find(x => x.key === currentChain);
+  const el = document.getElementById('send-amount-converted');
+  if (sendInUsd && price.usd > 0) {
+    el.textContent = `= ${(amount / price.usd).toFixed(6)} ${c?.label || ''}`;
+  } else if (price.usd > 0) {
+    el.textContent = `= ${formatUSD(amount * price.usd)}`;
+  } else {
+    el.textContent = '';
+  }
+}
+
+// ============================================================
+// CONTACTS / ADDRESS BOOK
+// ============================================================
+document.getElementById('btn-show-contacts').addEventListener('click', () => {
+  const dd = document.getElementById('contacts-dropdown');
+  dd.classList.toggle('hide');
+  if (!dd.classList.contains('hide')) {
+    const contacts = getContactsForChain(currentChain);
+    if (contacts.length === 0) {
+      dd.innerHTML = '<div class="font-mono text-[9px] text-text-muted py-2">No saved contacts for this chain</div>';
+    } else {
+      dd.innerHTML = contacts.map(c => `<div class="contact-item flex justify-between items-center py-1.5 ledger-border-b cursor-pointer hover:bg-surface-2" data-addr="${c.address}">
+        <span class="font-mono text-[10px]">${c.name}</span>
+        <span class="font-mono text-[8px] text-text-muted">${shortAddr(c.address)}</span>
+      </div>`).join('');
+      dd.querySelectorAll('.contact-item').forEach(el => {
+        el.addEventListener('click', () => {
+          document.getElementById('send-to').value = el.dataset.addr;
+          dd.classList.add('hide');
+        });
+      });
+    }
+  }
+});
+
+// ============================================================
+// TX CONFIRMATION OVERLAY
+// ============================================================
+let pendingConfirmCallback = null;
+
+function showTxConfirm(from, to, amount, fee, total, onConfirm) {
+  document.getElementById('confirm-from').textContent = shortAddr(from);
+  document.getElementById('confirm-to').textContent = shortAddr(to);
+  document.getElementById('confirm-amount').textContent = amount;
+  document.getElementById('confirm-fee').textContent = fee;
+  document.getElementById('confirm-total').textContent = total;
+  document.getElementById('tx-confirm-overlay').classList.remove('hide');
+  pendingConfirmCallback = onConfirm;
+}
+
+document.getElementById('btn-confirm-cancel').addEventListener('click', () => {
+  document.getElementById('tx-confirm-overlay').classList.add('hide');
+  pendingConfirmCallback = null;
+});
+
+document.getElementById('btn-confirm-send').addEventListener('click', () => {
+  document.getElementById('tx-confirm-overlay').classList.add('hide');
+  if (pendingConfirmCallback) { pendingConfirmCallback(); pendingConfirmCallback = null; }
+});
+
+// ============================================================
+// PENDING TX TRACKER
+// ============================================================
+const pendingTxs = [];
+
+function addPendingTx(hash, chain, amount) {
+  pendingTxs.push({ hash, chain, amount, time: Date.now(), status: 'pending' });
+  renderPendingTxs();
+  // Poll for confirmation
+  pollTxStatus(hash, chain);
+}
+
+async function pollTxStatus(hash, chain) {
+  const check = async () => {
+    try {
+      if (chain === 'evm') {
+        const resp = await fetch('https://ethereum-rpc.publicnode.com', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_getTransactionReceipt',params:[hash]})
+        });
+        const data = await resp.json();
+        if (data.result) {
+          const tx = pendingTxs.find(t => t.hash === hash);
+          if (tx) { tx.status = data.result.status === '0x1' ? 'confirmed' : 'failed'; renderPendingTxs(); toast(`Transaction ${tx.status}`); loadPortfolio(); }
+          return true;
+        }
+      }
+    } catch {}
+    return false;
+  };
+  // Poll every 5 seconds for up to 5 minutes
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    if (await check()) return;
+  }
+  const tx = pendingTxs.find(t => t.hash === hash);
+  if (tx && tx.status === 'pending') { tx.status = 'timeout'; renderPendingTxs(); }
+}
+
+function renderPendingTxs() {
+  const el = document.getElementById('pending-txs');
+  const list = document.getElementById('pending-txs-list');
+  if (pendingTxs.length === 0) { el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+  list.innerHTML = pendingTxs.map(tx => `<div class="flex justify-between items-center py-2 ledger-border-b">
+    <div class="flex items-center gap-2">
+      ${tx.status === 'pending' ? '<span class="pending-dot"></span>' : tx.status === 'confirmed' ? '<span class="material-symbols-outlined text-[14px] text-success-green">check_circle</span>' : '<span class="material-symbols-outlined text-[14px] text-error-red">error</span>'}
+      <a href="https://etherscan.io/tx/${tx.hash}" target="_blank" class="font-mono text-[10px] text-accent-seal hover:underline">${shortAddr(tx.hash)}</a>
+    </div>
+    <span class="font-mono text-[9px] text-text-muted">${tx.amount}</span>
+  </div>`).join('');
+}
+
+// ============================================================
+// SIDEBAR TOOL MENU
+// ============================================================
+document.querySelectorAll('.sidebar-tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const panel = btn.dataset.panel;
+    const isOpen = !document.getElementById(panel).classList.contains('hide');
+    // Close all panels
+    document.querySelectorAll('.adv-panel').forEach(p => p.classList.add('hide'));
+    document.querySelectorAll('.sidebar-tool-btn').forEach(b => {
+      b.classList.remove('bg-surface-2','border-l-4','border-accent-seal');
+    });
+    if (!isOpen) {
+      document.getElementById(panel).classList.remove('hide');
+      btn.classList.add('bg-surface-2','border-l-4','border-accent-seal');
+      // Scroll main content to panel
+      document.getElementById(panel).scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Load data for panel
+      if (panel === 'panel-keys') loadKeysList();
+      if (panel === 'panel-policies') loadPoliciesList();
+      if (panel === 'panel-audit') loadAuditList();
+      if (panel === 'panel-settings') loadSettingsData();
+      if (panel === 'panel-agent') { updateAgentAIStatus(); renderAgentList(); }
+    }
+    // Close mobile sidebar after selection
+    document.querySelector('.sidebar-left')?.classList.remove('mobile-open');
+  });
+});
+
+// ============================================================
+// API KEYS UI
+// ============================================================
+document.getElementById('btn-create-key').addEventListener('click', () => {
+  document.getElementById('key-create-form').classList.toggle('hide');
+  document.getElementById('key-token-display').classList.add('hide');
+});
+
+document.getElementById('btn-do-create-key').addEventListener('click', async () => {
+  if (!currentWallet) return;
+  const name = document.getElementById('key-name').value.trim();
+  if (!name) { toast('Key name required'); return; }
+  const expires = document.getElementById('key-expires').value || null;
+  const pass = getPass() || currentWallet.pass;
+
+  showLoading('Creating API key with HKDF encryption...');
+  try {
+    const mnemonic = await export_wallet(currentWallet.name, pass);
+    const secret = typeof mnemonic === 'string' ? mnemonic : mnemonic?.toString();
+    const { token, keyFile } = await createApiKey(name, currentWallet.name, secret, [], expires ? new Date(expires).toISOString() : null);
+    await logOperation(OPS.API_KEY_CREATE, { wallet_name: currentWallet.name, api_key_id: keyFile.id });
+
+    document.getElementById('key-token-display').classList.remove('hide');
+    document.getElementById('key-token-value').textContent = token;
+    document.getElementById('key-create-form').classList.add('hide');
+    loadKeysList();
+    toast('API key created');
+  } catch(e) { toast('Error: ' + friendlyError(e)); }
+  hideLoading();
+});
+
+document.getElementById('btn-copy-token').addEventListener('click', () => {
+  navigator.clipboard.writeText(document.getElementById('key-token-value').textContent);
+  toast('Token copied');
+});
+
+async function loadKeysList() {
+  const keys = await listApiKeys();
+  const el = document.getElementById('keys-list');
+  if (!keys.length) { el.innerHTML = '<div class="py-3 font-mono text-[10px] text-text-muted">No API keys</div>'; return; }
+  el.innerHTML = keys.map(k => `<div class="flex justify-between items-center py-2.5 ledger-border-b">
+    <div><span class="font-mono text-[10px] font-bold">${k.name}</span><span class="font-mono text-[8px] text-text-muted ml-2">${k.wallet_ids.join(', ')}</span>
+    ${k.expires_at ? `<span class="font-mono text-[8px] text-text-muted ml-2">exp: ${new Date(k.expires_at).toLocaleDateString()}</span>` : ''}</div>
+    <button class="btn-delete-key font-mono text-[9px] text-error-red hover:underline" data-id="${k.id}">Revoke</button>
+  </div>`).join('');
+  el.querySelectorAll('.btn-delete-key').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await deleteApiKey(btn.dataset.id);
+      await logOperation(OPS.API_KEY_DELETE, { api_key_id: btn.dataset.id });
+      loadKeysList(); toast('API key revoked');
+    });
+  });
+}
+
+// ============================================================
+// POLICIES UI
+// ============================================================
+document.getElementById('btn-create-policy').addEventListener('click', () => {
+  document.getElementById('policy-create-form').classList.toggle('hide');
+});
+
+document.getElementById('btn-do-create-policy').addEventListener('click', async () => {
+  const name = document.getElementById('policy-name').value.trim();
+  if (!name) { toast('Policy name required'); return; }
+
+  const rules = [];
+  const chains = Array.from(document.querySelectorAll('.policy-chain-cb:checked')).map(cb => cb.value);
+  if (chains.length > 0) rules.push({ type: 'allowed_chains', chain_ids: chains });
+
+  const expires = document.getElementById('policy-expires').value;
+  if (expires) rules.push({ type: 'expires_at', timestamp: new Date(expires).toISOString() });
+
+  const maxSpend = document.getElementById('policy-max-spend').value.trim();
+  if (maxSpend) rules.push({ type: 'max_daily_spend', amount: maxSpend, asset: 'usd' });
+
+  const policy = createPolicy(name, rules);
+  await savePolicy(policy);
+  await logOperation(OPS.POLICY_CREATE, { metadata: { policy_id: policy.id, name } });
+  document.getElementById('policy-create-form').classList.add('hide');
+  loadPoliciesList();
+  toast('Policy created');
+});
+
+async function loadPoliciesList() {
+  const policies = await listPolicies();
+  const el = document.getElementById('policies-list');
+  if (!policies.length) { el.innerHTML = '<div class="py-3 font-mono text-[10px] text-text-muted">No policies</div>'; return; }
+  el.innerHTML = policies.map(p => `<div class="flex justify-between items-center py-2.5 ledger-border-b">
+    <div><span class="font-mono text-[10px] font-bold">${p.name}</span>
+    <span class="font-mono text-[8px] text-text-muted ml-2">${p.rules.length} rule(s)</span></div>
+    <button class="btn-delete-policy font-mono text-[9px] text-error-red hover:underline" data-id="${p.id}">Delete</button>
+  </div>`).join('');
+  el.querySelectorAll('.btn-delete-policy').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await deletePolicy(btn.dataset.id);
+      await logOperation(OPS.POLICY_DELETE, { metadata: { policy_id: btn.dataset.id } });
+      loadPoliciesList(); toast('Policy deleted');
+    });
+  });
+}
+
+// ============================================================
+// AUDIT LOG UI
+// ============================================================
+document.getElementById('btn-refresh-audit').addEventListener('click', loadAuditList);
+document.getElementById('btn-export-audit').addEventListener('click', async () => {
+  const jsonl = await exportAuditLog();
+  const blob = new Blob([jsonl], { type: 'application/jsonl' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'ows-audit.jsonl'; a.click();
+  URL.revokeObjectURL(url);
+  toast('Audit log exported');
+});
+
+async function loadAuditList() {
+  const entries = await getAuditLog(50);
+  const el = document.getElementById('audit-list');
+  if (!entries.length) { el.innerHTML = '<div class="py-3 font-mono text-[10px] text-text-muted">No audit entries</div>'; return; }
+  el.innerHTML = entries.map(e => `<div class="flex justify-between items-center py-2 ledger-border-b">
+    <div class="flex items-center gap-2">
+      <span class="font-mono text-[9px] ${e.status === 'success' ? 'text-success-green' : 'text-error-red'}">${e.status === 'success' ? '&#x25CF;' : '&#x25CF;'}</span>
+      <span class="font-mono text-[10px]">${e.operation}</span>
+      ${e.wallet_name ? `<span class="font-mono text-[8px] text-text-muted">${e.wallet_name}</span>` : ''}
+    </div>
+    <span class="font-mono text-[8px] text-text-muted">${new Date(e.timestamp).toLocaleString()}</span>
+  </div>`).join('');
+}
+
+// ============================================================
+// X402 UI
+// ============================================================
+document.getElementById('btn-x402-fetch').addEventListener('click', async () => {
+  const url = document.getElementById('x402-url').value.trim();
+  if (!url) { toast('Enter a URL'); return; }
+  if (!currentWallet) { toast('Load a wallet first'); return; }
+
+  const acc = currentWallet.accounts?.find(a => a.chain_id?.startsWith('eip155'));
+  if (!acc) { toast('No EVM address found'); return; }
+
+  const pass = getPass() || currentWallet.pass;
+  const wallet = createX402Wallet(acc.address, async (json) => {
+    const result = await sign_typed_data(currentWallet.name, pass, json);
+    return result;
+  });
+
+  showLoading('Fetching with X402 payment...');
+  document.getElementById('x402-result').classList.add('hide');
+  try {
+    const resp = await fetchWithPayment(url, {}, wallet);
+    const body = await resp.text();
+    await logOperation(OPS.X402_PAYMENT, { wallet_name: currentWallet.name, chain: 'evm', metadata: { url, status: resp.status } });
+    document.getElementById('x402-result').classList.remove('hide');
+    document.getElementById('x402-result-body').textContent = `Status: ${resp.status}\n\n${body.slice(0, 2000)}`;
+    toast(`Response: ${resp.status}`);
+  } catch(e) {
+    document.getElementById('x402-result').classList.remove('hide');
+    document.getElementById('x402-result-body').textContent = 'Error: ' + friendlyError(e);
+  }
+  hideLoading();
+});
+
+// ============================================================
+// SETTINGS UI
+// ============================================================
+document.getElementById('btn-backup-vault').addEventListener('click', async () => {
+  showLoading('Exporting vault...');
+  try {
+    const json = await exportVaultBackup();
+    downloadBackup(json, `ows-vault-backup-${Date.now()}.json`);
+    toast('Vault backup downloaded');
+  } catch(e) { toast('Backup error: ' + friendlyError(e)); }
+  hideLoading();
+});
+
+document.getElementById('input-restore-file').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  showLoading('Restoring vault...');
+  try {
+    const text = await file.text();
+    const result = await importVaultBackup(text);
+    await refreshList(); renderSidebar();
+    toast(`Vault restored (${result.restored.length} stores)`);
+  } catch(e) { toast('Restore error: ' + friendlyError(e)); }
+  hideLoading();
+});
+
+document.getElementById('btn-add-contact').addEventListener('click', () => {
+  document.getElementById('add-contact-form').classList.toggle('hide');
+});
+
+document.getElementById('btn-do-add-contact').addEventListener('click', () => {
+  const name = document.getElementById('contact-name').value.trim();
+  const addr = document.getElementById('contact-address').value.trim();
+  const chain = document.getElementById('contact-chain').value;
+  if (!name || !addr) { toast('Name and address required'); return; }
+  saveContact(name, addr, chain);
+  document.getElementById('add-contact-form').classList.add('hide');
+  loadContactsList();
+  toast('Contact saved');
+});
+
+document.getElementById('btn-save-rpcs').addEventListener('click', () => {
+  const rpcs = {};
+  const fields = { 'rpc-eth':'eip155:1', 'rpc-btc':'bip122:mainnet', 'rpc-sol':'solana:mainnet', 'rpc-atom':'cosmos:cosmoshub-4', 'rpc-trx':'tron:mainnet', 'rpc-sui':'sui:mainnet', 'rpc-ton':'ton:mainnet', 'rpc-xrp':'xrpl:mainnet', 'rpc-fil':'filecoin:mainnet' };
+  for (const [id, key] of Object.entries(fields)) {
+    const val = document.getElementById(id)?.value?.trim();
+    if (val) rpcs[key] = val;
+  }
+  if (Object.keys(rpcs).length) { updateConfig({ rpcs }); toast('RPC settings saved'); }
+  else toast('No changes');
+});
+
+// Preferences
+document.getElementById('pref-currency')?.addEventListener('change', (e) => { updateConfig({ currency: e.target.value }); toast('Currency updated'); });
+document.getElementById('pref-autorefresh')?.addEventListener('change', (e) => { updateConfig({ autoRefresh: e.target.checked }); toast('Auto-refresh ' + (e.target.checked ? 'enabled' : 'disabled')); });
+
+// Cache
+document.getElementById('btn-clear-cache')?.addEventListener('click', () => { keyCache.clearAll(); toast('Key cache cleared'); loadSettingsData(); });
+
+// Danger zone
+document.getElementById('btn-clear-audit')?.addEventListener('click', async () => {
+  if (!confirm('Clear entire audit log? This cannot be undone.')) return;
+  const { clearAuditLog } = await import('./js/audit.js');
+  await clearAuditLog('CLEAR_AUDIT_LOG'); toast('Audit log cleared');
+});
+
+document.getElementById('btn-reset-config')?.addEventListener('click', () => {
+  if (!confirm('Reset all settings to defaults?')) return;
+  const { resetConfig } = import.meta.url ? {} : {};
+  localStorage.removeItem('ows-config');
+  localStorage.removeItem('ows-ai-config');
+  toast('Config reset to defaults'); loadSettingsData();
+});
+
+document.getElementById('btn-wipe-all')?.addEventListener('click', async () => {
+  if (!confirm('DELETE ALL DATA? All wallets, keys, policies, and audit logs will be permanently destroyed.')) return;
+  if (!confirm('Are you absolutely sure? This CANNOT be undone.')) return;
+  const dbs = await indexedDB.databases?.() || [];
+  for (const db of dbs) { if (db.name) indexedDB.deleteDatabase(db.name); }
+  localStorage.clear(); sessionStorage.clear();
+  toast('All data wiped'); setTimeout(() => location.reload(), 1000);
+});
+
+// AI Config
+document.getElementById('ai-provider').addEventListener('change', (e) => {
+  const provider = e.target.value;
+  const modelSelect = document.getElementById('ai-model');
+  modelSelect.innerHTML = '<option value="">Default model</option>';
+  if (AI_PROVIDERS[provider]) {
+    for (const m of AI_PROVIDERS[provider].models) {
+      modelSelect.innerHTML += `<option value="${m}">${m}</option>`;
+    }
+  }
+});
+
+document.getElementById('btn-save-ai').addEventListener('click', () => {
+  const provider = document.getElementById('ai-provider').value;
+  const apiKey = document.getElementById('ai-api-key').value.trim();
+  const model = document.getElementById('ai-model').value;
+  if (!provider || !apiKey) { toast('Select provider and enter API key'); return; }
+  saveAIConfig({ provider, apiKey, model: model || undefined });
+  document.getElementById('ai-config-status').textContent = `Saved: ${AI_PROVIDERS[provider]?.name} (${model || 'default'})`;
+  document.getElementById('ai-mode-badge').textContent = `AI: ${AI_PROVIDERS[provider]?.name}`;
+  toast('AI config saved');
+});
+
+function loadSettingsData() {
+  loadContactsList();
+  const config = getConfig();
+  // RPC fields
+  const rpcMap = { 'rpc-eth':'eip155:1', 'rpc-btc':'bip122:mainnet', 'rpc-sol':'solana:mainnet', 'rpc-atom':'cosmos:cosmoshub-4', 'rpc-trx':'tron:mainnet', 'rpc-sui':'sui:mainnet', 'rpc-ton':'ton:mainnet', 'rpc-xrp':'xrpl:mainnet', 'rpc-fil':'filecoin:mainnet' };
+  for (const [id, key] of Object.entries(rpcMap)) {
+    const el = document.getElementById(id);
+    if (el) el.value = config.rpcs[key] || '';
+  }
+  // Preferences
+  document.getElementById('pref-currency').value = config.currency || 'usd';
+  document.getElementById('pref-autorefresh').checked = config.autoRefresh !== false;
+  // Cache stats
+  const stats = keyCache.stats();
+  document.getElementById('cache-stats').textContent = `Entries: ${stats.entries}/${stats.maxEntries} · TTL: ${stats.ttlMs/1000}s`;
+  // Load AI config
+  const aiCfg = getAIConfig();
+  if (aiCfg.provider) {
+    document.getElementById('ai-provider').value = aiCfg.provider;
+    document.getElementById('ai-provider').dispatchEvent(new Event('change'));
+    if (aiCfg.model) document.getElementById('ai-model').value = aiCfg.model;
+    document.getElementById('ai-config-status').textContent = `Active: ${AI_PROVIDERS[aiCfg.provider]?.name}`;
+    document.getElementById('ai-mode-badge').textContent = `AI: ${AI_PROVIDERS[aiCfg.provider]?.name}`;
+  }
+}
+
+function loadContactsList() {
+  const contacts = getContacts();
+  const el = document.getElementById('contacts-list');
+  if (!contacts.length) { el.innerHTML = '<div class="py-2 font-mono text-[10px] text-text-muted">No saved contacts</div>'; return; }
+  el.innerHTML = contacts.map(c => `<div class="flex justify-between items-center py-2 ledger-border-b">
+    <div><span class="font-mono text-[10px]">${c.name}</span><span class="font-mono text-[8px] text-text-muted ml-2">${shortAddr(c.address)}</span><span class="font-mono text-[8px] text-text-muted ml-1">${c.chain}</span></div>
+    <button class="btn-rm-contact font-mono text-[9px] text-error-red hover:underline" data-addr="${c.address}" data-chain="${c.chain}">Remove</button>
+  </div>`).join('');
+  el.querySelectorAll('.btn-rm-contact').forEach(btn => {
+    btn.addEventListener('click', () => {
+      removeContact(btn.dataset.addr, btn.dataset.chain);
+      loadContactsList(); toast('Contact removed');
+    });
+  });
+}
+
+// ============================================================
+// RENAME WALLET
+// ============================================================
+document.getElementById('btn-rename').addEventListener('click', async () => {
+  if (!currentWallet) return;
+  const newName = await showDialog('Rename Wallet', `Enter new name for "${currentWallet.name}"`, 'New wallet name...', 'text');
+  if (!newName || newName === currentWallet.name) return;
+  const pass = getPass() || currentWallet.pass;
+  showLoading('Renaming wallet...');
+  try {
+    await rename_wallet(currentWallet.name, newName, pass);
+    currentWallet.name = newName;
+    await refreshList(); renderSidebar(); renderWalletView();
+    toast(`Wallet renamed to "${newName}"`);
+  } catch(e) { alert(friendlyError(e)); }
+  hideLoading();
+});
+
+// ============================================================
+// MULTI-ACCOUNT (derive at index)
+// ============================================================
+document.getElementById('btn-derive-account').addEventListener('click', async () => {
+  if (!currentWallet) return;
+  const indexStr = await showDialog('Derive Account', 'Enter account index (1, 2, 3...)', '1', 'number');
+  if (!indexStr) return;
+  const index = parseInt(indexStr);
+  if (isNaN(index) || index < 0) { toast('Invalid index'); return; }
+  const pass = getPass() || currentWallet.pass;
+  showLoading(`Deriving accounts at index ${index}...`);
+  try {
+    const accounts = await derive_accounts(currentWallet.name, pass, index);
+    // Show in a popup or append to current view
+    const lines = (accounts || []).map(a => `${a.chain_id}: ${a.address}`).join('\n');
+    hideLoading();
+    alert(`Accounts at index ${index}:\n\n${lines}`);
+    toast(`${(accounts || []).length} accounts derived at index ${index}`);
+  } catch(e) { hideLoading(); alert(friendlyError(e)); }
+});
+
+// ============================================================
+// SIGN TABS (Message / EIP-712)
+// ============================================================
+document.getElementById('sign-tab-msg').addEventListener('click', () => {
+  document.getElementById('sign-mode-msg').classList.remove('hide');
+  document.getElementById('sign-mode-712').classList.add('hide');
+  document.getElementById('sign-tab-msg').classList.add('text-accent-seal', 'ledger-border-b', 'border-accent-seal');
+  document.getElementById('sign-tab-msg').classList.remove('text-text-muted');
+  document.getElementById('sign-tab-712').classList.remove('text-accent-seal', 'ledger-border-b', 'border-accent-seal');
+  document.getElementById('sign-tab-712').classList.add('text-text-muted');
+  document.getElementById('sign-stamp').classList.add('hide');
+});
+
+document.getElementById('sign-tab-712').addEventListener('click', () => {
+  document.getElementById('sign-mode-msg').classList.add('hide');
+  document.getElementById('sign-mode-712').classList.remove('hide');
+  document.getElementById('sign-tab-712').classList.add('text-accent-seal', 'ledger-border-b', 'border-accent-seal');
+  document.getElementById('sign-tab-712').classList.remove('text-text-muted');
+  document.getElementById('sign-tab-msg').classList.remove('text-accent-seal', 'ledger-border-b', 'border-accent-seal');
+  document.getElementById('sign-tab-msg').classList.add('text-text-muted');
+  document.getElementById('sign-stamp').classList.add('hide');
+});
+
+// EIP-712 sign
+document.getElementById('btn-sign-712').addEventListener('click', async () => {
+  const json = document.getElementById('input-sign-712').value.trim();
+  if (!json || !currentWallet) return;
+  document.getElementById('sign-stamp').classList.add('hide');
+  const pass = getPass() || currentWallet.pass;
+  showLoading('Signing EIP-712 typed data...');
+  try {
+    // Validate JSON
+    JSON.parse(json);
+    const r = await sign_typed_data(currentWallet.name, pass, json);
+    document.getElementById('sign-stamp').classList.remove('hide');
+    document.getElementById('sign-stamp-body').textContent = typeof r === 'string' ? r : JSON.stringify(r, null, 2);
+    toast('Typed data signed');
+  } catch(e) { alert(friendlyError(e)); }
+  hideLoading();
+});
+
+// ============================================================
+// X402 PROBE
+// ============================================================
+document.getElementById('btn-x402-probe').addEventListener('click', async () => {
+  const url = document.getElementById('x402-probe-url').value.trim();
+  if (!url) { toast('Enter a URL'); return; }
+  showLoading('Probing URL...');
+  const el = document.getElementById('x402-probe-result');
+  try {
+    const reqs = await probeX402(url);
+    el.classList.remove('hide');
+    if (reqs && reqs.length > 0) {
+      el.innerHTML = `<span class="text-accent-seal font-bold">X402 supported!</span> ${reqs.length} payment option(s): ` +
+        reqs.map(r => `${r.scheme} on ${r.network} — ${r.amount} ${r.asset ? shortAddr(r.asset) : ''}`).join(', ');
+    } else if (reqs) {
+      el.textContent = 'URL returned 402 but no parseable payment requirements found.';
+    } else {
+      el.textContent = 'URL does not return HTTP 402 — X402 not supported.';
+    }
+  } catch(e) { el.classList.remove('hide'); el.textContent = 'Probe error: ' + friendlyError(e); }
+  hideLoading();
+});
+
+// ============================================================
+// POLICY EVALUATION TEST
+// ============================================================
+document.getElementById('btn-eval-policy').addEventListener('click', async () => {
+  const chain = document.getElementById('eval-chain').value;
+  const amount = document.getElementById('eval-amount').value.trim() || '0';
+  const el = document.getElementById('eval-result');
+  el.classList.remove('hide');
+
+  const policies = await listPolicies();
+  if (policies.length === 0) {
+    el.innerHTML = '<span class="text-text-muted">No policies defined. Create one first.</span>';
+    return;
+  }
+
+  const context = buildPolicyContext(chain, currentWallet?.name || '', '', { value: amount });
+  const result = evaluatePolicies(policies, context);
+
+  if (result.allow) {
+    el.innerHTML = `<span class="text-success-green font-bold">ALLOWED</span> — Transaction passes all ${policies.length} policy(ies).`;
+  } else {
+    el.innerHTML = `<span class="text-error-red font-bold">DENIED</span> — ${result.reason}`;
+  }
+});
+
+// ============================================================
+// AI AGENT
+// ============================================================
+const agentManager = new AgentManager();
+let activeAgent = null;
+
+// Agent AI provider → populate models
+document.getElementById('agent-ai-provider').addEventListener('change', (e) => {
+  const provider = e.target.value;
+  const modelSelect = document.getElementById('agent-ai-model');
+  modelSelect.innerHTML = '<option value="">Select model...</option>';
+  if (AI_PROVIDERS[provider]) {
+    for (const m of AI_PROVIDERS[provider].models) {
+      const isDefault = m === AI_PROVIDERS[provider].defaultModel;
+      modelSelect.innerHTML += `<option value="${m}"${isDefault ? ' selected' : ''}>${m}${isDefault ? ' (recommended)' : ''}</option>`;
+    }
+  }
+});
+
+// Agent AI setup (inline)
+document.getElementById('btn-agent-save-ai').addEventListener('click', () => {
+  const provider = document.getElementById('agent-ai-provider').value;
+  const apiKey = document.getElementById('agent-ai-key').value.trim();
+  const model = document.getElementById('agent-ai-model').value;
+  if (!provider || !apiKey) { toast('Select provider and paste API key'); return; }
+  saveAIConfig({ provider, apiKey, model: model || undefined });
+  document.getElementById('agent-ai-setup').classList.add('hide');
+  document.getElementById('agent-ai-connected').classList.remove('hide');
+  const modelName = model || AI_PROVIDERS[provider]?.defaultModel || '';
+  document.getElementById('agent-ai-provider-name').textContent = `${AI_PROVIDERS[provider]?.name} · ${modelName}`;
+  document.getElementById('ai-mode-badge').textContent = `AI: ${modelName}`;
+  // Also update Settings panel
+  document.getElementById('ai-provider').value = provider;
+  document.getElementById('ai-api-key').value = apiKey;
+  toast('AI provider connected');
+});
+
+document.getElementById('btn-agent-change-ai').addEventListener('click', () => {
+  document.getElementById('agent-ai-setup').classList.remove('hide');
+  document.getElementById('agent-ai-connected').classList.add('hide');
+});
+
+// Show/hide AI setup based on config
+function updateAgentAIStatus() {
+  if (hasAIConfig()) {
+    const cfg = getAIConfig();
+    document.getElementById('agent-ai-setup').classList.add('hide');
+    document.getElementById('agent-ai-connected').classList.remove('hide');
+    document.getElementById('agent-ai-provider-name').textContent = `${AI_PROVIDERS[cfg.provider]?.name} connected`;
+    document.getElementById('ai-mode-badge').textContent = `AI: ${AI_PROVIDERS[cfg.provider]?.name}`;
+  } else {
+    document.getElementById('agent-ai-setup').classList.remove('hide');
+    document.getElementById('agent-ai-connected').classList.add('hide');
+    document.getElementById('ai-mode-badge').textContent = '';
+  }
+}
+
+document.getElementById('btn-create-agent').addEventListener('click', () => {
+  document.getElementById('agent-create-form').classList.toggle('hide');
+});
+
+document.getElementById('btn-do-create-agent').addEventListener('click', async () => {
+  if (!currentWallet) { toast('Load a wallet first'); return; }
+  const name = document.getElementById('agent-name').value.trim();
+  if (!name) { toast('Agent name required'); return; }
+  const rate = parseInt(document.getElementById('agent-rate').value) || 5;
+  const pass = getPass() || currentWallet.pass;
+
+  const agent = agentManager.create({
+    name,
+    walletName: currentWallet.name,
+    maxTxPerMinute: rate,
+    allowedChains: ['eip155:1', 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+    signFn: async (wName, chain, data) => {
+      return await sign_message(wName, pass, chain, data);
+    },
+    signTypedDataFn: async (wName, data) => {
+      return await sign_typed_data(wName, pass, data);
+    },
+    onEvent: (event) => {
+      renderAgentHistory();
+      renderAgentScheduled();
+      updateAgentStatus();
+      if (event.type === 'notification') toast(`Agent: ${event.message}`);
+    },
+  });
+
+  if (currentWallet.accounts) agent.setAccounts(currentWallet.accounts);
+
+  document.getElementById('agent-create-form').classList.add('hide');
+  activeAgent = agent;
+  renderAgentList();
+  toast(`Agent "${name}" created`);
+});
+
+function renderAgentList() {
+  const agents = agentManager.list();
+  const el = document.getElementById('agent-list');
+  if (!agents.length) { el.innerHTML = '<div class="py-3 font-mono text-[10px] text-text-muted">No agents</div>'; return; }
+  el.innerHTML = agents.map(a => `<div class="flex justify-between items-center py-2.5 ledger-border-b">
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full ${a.status === 'running' ? 'bg-success-green' : a.status === 'error' ? 'bg-error-red' : 'bg-text-muted'}"></span>
+      <span class="font-mono text-[10px] font-bold">${a.name}</span>
+      <span class="font-mono text-[8px] text-text-muted">${a.status} &middot; ${a.completedTasks} tasks</span>
+    </div>
+    <div class="flex gap-2">
+      <button class="btn-select-agent font-mono text-[9px] text-accent-seal hover:underline" data-id="${a.id}">Select</button>
+      <button class="btn-remove-agent font-mono text-[9px] text-error-red hover:underline" data-id="${a.id}">Remove</button>
+    </div>
+  </div>`).join('');
+
+  el.querySelectorAll('.btn-select-agent').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeAgent = agentManager.get(btn.dataset.id);
+      document.getElementById('agent-task-area').classList.remove('hide');
+      document.getElementById('agent-active-name').textContent = activeAgent?.name || '';
+      renderAgentHistory();
+    });
+  });
+
+  el.querySelectorAll('.btn-remove-agent').forEach(btn => {
+    btn.addEventListener('click', () => {
+      agentManager.remove(btn.dataset.id);
+      if (activeAgent?.id === btn.dataset.id) { activeAgent = null; document.getElementById('agent-task-area').classList.add('hide'); }
+      renderAgentList();
+      toast('Agent removed');
+    });
+  });
+}
+
+document.getElementById('btn-run-agent-task').addEventListener('click', async () => {
+  if (!activeAgent) { toast('Select an agent first'); return; }
+  const type = document.getElementById('agent-task-type').value;
+  const chain = document.getElementById('agent-task-chain').value;
+  const input = document.getElementById('agent-task-input').value.trim();
+
+  let params = {};
+  if (type === 'check_balance') {
+    const acc = currentWallet?.accounts?.find(a => {
+      const prefix = chain === 'evm' ? 'eip155' : chain === 'bitcoin' ? 'bip122' : chain;
+      return a.chain_id?.startsWith(prefix);
+    });
+    params = { address: input || acc?.address };
+  } else if (type === 'sign_message') {
+    params = { message: input || 'Agent test message' };
+  } else if (type === 'sign_typed_data') {
+    params = { typedDataJson: input };
+  }
+
+  showLoading('Agent executing task...');
+  const taskId = activeAgent.addTask({ type, chain, params });
+  const task = activeAgent.taskQueue.find(t => t.id === taskId);
+  await activeAgent._executeTask(task);
+  hideLoading();
+
+  renderAgentHistory();
+  const result = activeAgent.getTask(taskId);
+  if (result.status === 'completed') {
+    toast(`Task completed: ${type}`);
+  } else if (result.status === 'denied') {
+    toast(`Task denied: ${result.error}`);
+  } else {
+    toast(`Task failed: ${result.error}`);
+  }
+});
+
+document.getElementById('btn-stop-agent').addEventListener('click', () => {
+  if (activeAgent) { activeAgent.stop(); updateAgentStatus(); renderAgentList(); toast('Agent stopped'); }
+});
+
+document.getElementById('btn-start-agent').addEventListener('click', () => {
+  if (activeAgent) { activeAgent.start(); updateAgentStatus(); toast('Agent started — running autonomously'); }
+});
+
+document.getElementById('btn-notify-perm').addEventListener('click', async () => {
+  const perm = await OWSAgent.requestNotificationPermission();
+  toast(perm === 'granted' ? 'Notifications enabled' : 'Notifications denied');
+});
+
+// Enter key to send
+document.getElementById('agent-command').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btn-agent-run-cmd').click(); }
+});
+
+// Natural language command preview
+document.getElementById('agent-command').addEventListener('input', (e) => {
+  if (!activeAgent) return;
+  const parsed = activeAgent.parseCommand(e.target.value);
+  const preview = document.getElementById('agent-command-preview');
+  if (parsed) {
+    preview.classList.remove('hide');
+    if (parsed.scheduled) {
+      preview.textContent = `Scheduled: "${parsed.name}" every ${parsed.intervalMs / 1000}s → ${parsed.task.type} on ${parsed.task.chain || 'evm'}`;
+    } else if (parsed.tasks) {
+      preview.textContent = `Task: ${parsed.tasks.map(t => `${t.type} on ${t.chain || 'evm'}`).join(' → ')}`;
+    }
+  } else {
+    preview.classList.add('hide');
+  }
+});
+
+document.getElementById('btn-agent-run-cmd').addEventListener('click', async () => {
+  if (!activeAgent) { toast('Select an agent first'); return; }
+  const cmd = document.getElementById('agent-command').value.trim();
+  if (!cmd) { toast('Enter a command'); return; }
+
+  // Add to chat log
+  appendChat('user', cmd);
+  document.getElementById('agent-command').value = '';
+
+  // Try local parser first
+  const parsed = activeAgent.parseCommand(cmd);
+
+  if (parsed) {
+    // Local parser understood
+    if (parsed.scheduled) {
+      activeAgent.schedule({ name: parsed.name, intervalMs: parsed.intervalMs, task: parsed.task });
+      renderAgentScheduled();
+      appendChat('agent', `Scheduled: ${parsed.name} (every ${parsed.intervalMs / 1000}s)`);
+      if (!activeAgent._running) { activeAgent.start(); updateAgentStatus(); }
+    } else if (parsed.tasks) {
+      for (const task of parsed.tasks) {
+        const taskId = activeAgent.addTask(task);
+        const t = activeAgent.taskQueue.find(x => x.id === taskId);
+        appendChat('agent', `Executing: ${task.type} on ${task.chain || 'evm'}...`);
+        await activeAgent._executeTask(t);
+        const result = activeAgent.getTask(taskId);
+        if (result?.status === 'completed') {
+          appendChat('agent', `Done: ${JSON.stringify(result.result, null, 2).slice(0, 200)}`);
+        } else {
+          appendChat('agent', `${result?.status}: ${result?.error || 'unknown'}`);
+        }
+      }
+      renderAgentHistory();
+    }
+  } else if (hasAIConfig()) {
+    // Use AI provider
+    appendChat('agent', 'Thinking...');
+    try {
+      const balances = portfolioCache ? Object.entries(portfolioCache).map(([k,v]) => `${v.symbol}: ${v.formatted}`).join(', ') : '';
+      const response = await aiChat(cmd, {
+        name: currentWallet?.name,
+        accounts: currentWallet?.accounts,
+        balances,
+      });
+      // Remove "Thinking..."
+      const chatLog = document.getElementById('agent-chat-log');
+      if (chatLog.lastChild) chatLog.removeChild(chatLog.lastChild);
+
+      await executeAIResponse(response);
+    } catch (e) {
+      const chatLog = document.getElementById('agent-chat-log');
+      if (chatLog.lastChild) chatLog.removeChild(chatLog.lastChild);
+      appendChat('agent', `Error: ${e.message}`);
+    }
+  } else {
+    appendChat('agent', 'Could not understand. Add an AI API key in Settings for smart commands, or try: "check my ETH balance"');
+  }
+});
+
+async function executeAIResponse(response) {
+  if (!response?.action) { appendChat('agent', 'No action returned'); return; }
+
+  switch (response.action) {
+    case 'info':
+      appendChat('agent', response.message || 'No info');
+      break;
+
+    case 'check_balance': {
+      const chain = response.chain || 'evm';
+      const acc = currentWallet?.accounts?.find(a => {
+        const prefix = chain === 'evm' ? 'eip155' : chain === 'bitcoin' ? 'bip122' : chain;
+        return a.chain_id?.startsWith(prefix);
+      });
+      if (acc) {
+        const taskId = activeAgent.addTask({ type: 'check_balance', chain, params: { address: acc.address } });
+        const t = activeAgent.taskQueue.find(x => x.id === taskId);
+        await activeAgent._executeTask(t);
+        const result = activeAgent.getTask(taskId);
+        if (result?.result) {
+          appendChat('agent', `${result.result.symbol} balance: ${result.result.formatted} ${result.result.symbol}`);
+        }
+      } else {
+        appendChat('agent', `No ${chain} address found`);
+      }
+      break;
+    }
+
+    case 'sign_message': {
+      const taskId = activeAgent.addTask({ type: 'sign_message', chain: response.chain || 'evm', params: { message: response.message } });
+      const t = activeAgent.taskQueue.find(x => x.id === taskId);
+      await activeAgent._executeTask(t);
+      const result = activeAgent.getTask(taskId);
+      appendChat('agent', result?.status === 'completed' ? `Signed: ${JSON.stringify(result.result).slice(0, 100)}...` : `Failed: ${result?.error}`);
+      break;
+    }
+
+    case 'schedule': {
+      activeAgent.schedule({ name: response.name || 'ai-schedule', intervalMs: response.intervalMs || 60000, task: response.task });
+      renderAgentScheduled();
+      appendChat('agent', `Scheduled: ${response.name} every ${(response.intervalMs || 60000) / 1000}s`);
+      if (!activeAgent._running) { activeAgent.start(); updateAgentStatus(); }
+      break;
+    }
+
+    case 'alert': {
+      const chain = response.chain || 'evm';
+      const acc = currentWallet?.accounts?.find(a => a.chain_id?.startsWith(chain === 'evm' ? 'eip155' : chain));
+      activeAgent.schedule({
+        name: `alert-${chain}`,
+        intervalMs: 60000,
+        task: {
+          type: 'check_balance', chain,
+          params: { address: acc?.address, notifyBelow: response.threshold },
+          condition: { type: response.condition || 'balance_below', chain, address: acc?.address, threshold: response.threshold },
+        },
+      });
+      renderAgentScheduled();
+      appendChat('agent', `Alert set: ${chain} ${response.condition || 'balance_below'} ${response.threshold}`);
+      if (!activeAgent._running) { activeAgent.start(); updateAgentStatus(); }
+      break;
+    }
+
+    case 'multi': {
+      if (response.tasks) {
+        for (const sub of response.tasks) await executeAIResponse(sub);
+      }
+      break;
+    }
+
+    default:
+      appendChat('agent', `Unknown action: ${response.action}`);
+  }
+  renderAgentHistory();
+}
+
+function appendChat(role, text) {
+  const el = document.getElementById('agent-chat-log');
+  const isUser = role === 'user';
+  el.innerHTML += `<div class="flex ${isUser ? 'justify-end' : 'justify-start'}">
+    <div class="${isUser ? 'bg-accent-seal text-background' : 'bg-surface ledger-border'} px-3 py-2 max-w-[85%]" style="border-radius:2px">
+      <span class="font-mono text-[10px] leading-relaxed block whitespace-pre-wrap">${escapeHtml(text)}</span>
+    </div>
+  </div>`;
+  el.scrollTop = el.scrollHeight;
+}
+
+function escapeHtml(text) {
+  if (typeof text !== 'string') text = String(text ?? '');
+  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
+}
+
+// Sanitize all dynamic values before innerHTML insertion
+function safe(val) { return escapeHtml(val); }
+
+function updateAgentStatus() {
+  if (!activeAgent) return;
+  const dot = document.getElementById('agent-status-dot');
+  dot.className = `w-2 h-2 rounded-full ${activeAgent.status === 'running' ? 'bg-success-green animate-pulse' : activeAgent.status === 'error' ? 'bg-error-red' : 'bg-text-muted'}`;
+}
+
+function renderAgentScheduled() {
+  if (!activeAgent) return;
+  const scheduled = activeAgent.getScheduled();
+  const el = document.getElementById('agent-scheduled');
+  const list = document.getElementById('agent-scheduled-list');
+  if (!scheduled.length) { el.classList.add('hide'); return; }
+  el.classList.remove('hide');
+  list.innerHTML = scheduled.map(s => `<div class="flex justify-between items-center py-1.5 ledger-border-b">
+    <div class="flex items-center gap-2">
+      <span class="pending-dot"></span>
+      <span class="font-mono text-[10px]">${s.name}</span>
+      <span class="font-mono text-[8px] text-text-muted">every ${s.intervalMs/1000}s &middot; ${s.runCount} runs</span>
+    </div>
+    <button class="btn-unsched font-mono text-[9px] text-error-red hover:underline" data-id="${s.id}">Cancel</button>
+  </div>`).join('');
+  list.querySelectorAll('.btn-unsched').forEach(btn => {
+    btn.addEventListener('click', () => { activeAgent.unschedule(btn.dataset.id); renderAgentScheduled(); toast('Schedule cancelled'); });
+  });
+}
+
+function renderAgentHistory() {
+  if (!activeAgent) return;
+  const history = activeAgent.getHistory();
+  const el = document.getElementById('agent-history');
+  if (!history.length) { el.innerHTML = '<div class="py-2 font-mono text-[10px] text-text-muted">No task history</div>'; return; }
+  el.innerHTML = history.slice(-20).reverse().map(t => `<div class="flex justify-between items-center py-2 ledger-border-b">
+    <div class="flex items-center gap-2">
+      <span class="font-mono text-[9px] ${t.status === 'completed' ? 'text-success-green' : t.status === 'denied' ? 'text-accent-seal' : 'text-error-red'}">${t.status}</span>
+      <span class="font-mono text-[10px]">${t.type}</span>
+      <span class="font-mono text-[8px] text-text-muted">${t.chain}</span>
+    </div>
+    <span class="font-mono text-[8px] text-text-muted">${t.completed ? new Date(t.completed).toLocaleTimeString() : ''}</span>
+  </div>`).join('');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function refreshList() { try { const l = await list_wallets(); walletsList = l || []; } catch { walletsList = []; } }
+
+document.getElementById('footer-year').textContent = new Date().getFullYear();
+showLoading('Loading WebAssembly engine...');
+await init();
+hideLoading();
+await refreshList();
+renderSidebar();
+showView('view-welcome');
+</script>
+</body>
+</html>

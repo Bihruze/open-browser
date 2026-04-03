@@ -1,0 +1,16 @@
+{
+  "name": "Open Browser",
+  "short_name": "OpenBrowser",
+  "description": "Open Browser — Non-custodial multi-chain wallet SDK",
+  "start_url": "/demo/",
+  "display": "standalone",
+  "background_color": "#faf7f2",
+  "theme_color": "#c8601a",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
