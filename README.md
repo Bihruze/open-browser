@@ -12,6 +12,18 @@ Built on [Open Wallet Standard (OWS)](https://github.com/open-wallet-standard/co
 
 ## For Users
 
+### Run Locally (3 commands)
+
+```bash
+git clone https://github.com/Bihruze/open-browser.git
+cd open-browser
+npx serve . -p 3000
+```
+
+Open http://localhost:3000 in your browser — wallet is ready.
+
+> **No account needed. No install. No server.** Everything runs in your browser.
+
 ### What is Open Browser?
 
 A cryptocurrency wallet that runs 100% inside your web browser. Your private keys are generated and stored on your device — they never go to any server. It supports 9 blockchain networks and includes an AI assistant that can manage your wallet using natural language.
